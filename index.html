@@ -1,0 +1,533 @@
+<meta charset="utf-8">
+<title>OpenOmni — Simulación interactiva</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#0e1116; --panel:#171c24cc; --panel2:#1e2530; --stroke:#2a3340;
+    --txt:#e7edf5; --muted:#93a1b5; --accent:#ff6a3d; --accent2:#18b6a6;
+    --wood:#c9a06a; --steel:#9aa3ad;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);
+    font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  .panel{position:absolute;background:var(--panel);backdrop-filter:blur(8px);
+    border:1px solid var(--stroke);border-radius:14px;padding:14px 16px;
+    box-shadow:0 10px 30px #0008}
+  #left{top:14px;left:14px;width:300px;max-height:calc(100% - 28px);overflow:auto}
+  #right{top:14px;right:14px;width:320px;max-height:calc(100% - 28px);overflow:auto}
+  #bottom{left:50%;transform:translateX(-50%);bottom:14px;display:flex;gap:8px;
+    flex-wrap:wrap;justify-content:center;align-items:center;max-width:calc(100% - 28px)}
+  h1{font-size:16px;margin:0 0 2px;letter-spacing:.3px}
+  h1 span{color:var(--accent)}
+  .sub{font-size:11px;color:var(--muted);margin:0 0 12px}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);
+    margin:16px 0 8px;border-top:1px solid var(--stroke);padding-top:12px}
+  h2:first-of-type{border-top:none;padding-top:0;margin-top:6px}
+  label.row{display:block;font-size:12px;margin:9px 0}
+  label.row .v{float:right;color:var(--accent2);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--accent);margin-top:5px}
+  .chk{display:flex;align-items:center;gap:8px;font-size:12.5px;margin:8px 0;cursor:pointer}
+  .chk input{accent-color:var(--accent);width:16px;height:16px}
+  button{background:var(--panel2);color:var(--txt);border:1px solid var(--stroke);
+    border-radius:10px;padding:9px 14px;font-size:13px;cursor:pointer;font-weight:600}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);color:#160b06;border-color:var(--accent)}
+  button.acc2{background:var(--accent2);color:#04201c;border-color:var(--accent2)}
+  .legend div,.forcekey div{display:flex;align-items:center;gap:8px;font-size:12px;margin:6px 0}
+  .sw{width:14px;height:14px;border-radius:4px;flex:0 0 auto;border:1px solid #0006}
+  .read{font-size:12px;line-height:1.7}
+  .read b{color:var(--accent2);font-variant-numeric:tabular-nums}
+  .phys{font-size:11.5px;color:#cdd8e6;line-height:1.55}
+  .phys code{background:#0c0f14;padding:1px 5px;border-radius:5px;color:#ffd7a8}
+  a.dl{color:var(--accent2);font-size:12px;text-decoration:none;border:1px solid var(--stroke);
+    padding:6px 10px;border-radius:9px}
+  a.dl:hover{border-color:var(--accent2)}
+  details{margin:6px 0}
+  summary{cursor:pointer;font-size:12.5px;color:var(--txt)}
+  #hint{position:absolute;bottom:64px;left:50%;transform:translateX(-50%);
+    font-size:11px;color:var(--muted);text-align:center;pointer-events:none}
+  @media (max-width:900px){#left,#right{width:44vw;font-size:11px}}
+</style>
+
+<div id="app"></div>
+
+<div id="left" class="panel">
+  <h1>Open<span>Omni</span></h1>
+  <p class="sub">Treadmill omnidireccional pasiva · gemelo interactivo</p>
+
+  <h2>Persona (humanoide)</h2>
+  <label class="row">Peso <span class="v" id="vW">70 kg</span>
+    <input id="sW" type="range" min="40" max="120" value="70" step="1"></label>
+  <label class="row">Altura <span class="v" id="vH">1.75 m</span>
+    <input id="sH" type="range" min="150" max="200" value="175" step="1"></label>
+  <label class="row">Inclinación / dejarse caer <span class="v" id="vL">12°</span>
+    <input id="sL" type="range" min="0" max="30" value="12" step="1"></label>
+  <label class="row">Giro sobre la plataforma <span class="v" id="vT">0°</span>
+    <input id="sT" type="range" min="-180" max="180" value="0" step="1"></label>
+
+  <h2>Cuenco</h2>
+  <label class="row">Pendiente del borde <span class="v" id="vB">13°</span>
+    <input id="sB" type="range" min="10" max="18" value="13" step="1"></label>
+
+  <h2>Vistas</h2>
+  <label class="chk"><input type="checkbox" id="cForces" checked> Flechas de fuerza</label>
+  <label class="chk"><input type="checkbox" id="cPrinted"> Resaltar piezas impresas 3D</label>
+  <label class="chk"><input type="checkbox" id="cHyd"> Resaltar sistema hidráulico</label>
+  <label class="chk"><input type="checkbox" id="cWalk" checked> Animar caminata</label>
+  <label class="chk"><input type="checkbox" id="cLabels"> Etiquetas de piezas</label>
+</div>
+
+<div id="right" class="panel">
+  <h2>Fuerzas en vivo</h2>
+  <div class="read">
+    Peso <b id="rW">687 N</b><br>
+    Normal en el pie <b id="rN">669 N</b><br>
+    Recentrado (gravedad) <b id="rR">154 N</b><br>
+    Horizontal en el arnés <b id="rH">146 N</b><br>
+    Empuje del gas strut <b id="rS">206 N</b><br>
+    Momento en el hub <b id="rM">176 N·m</b>
+  </div>
+  <div class="forcekey" style="margin-top:8px">
+    <div><span class="sw" style="background:#ff4d4d"></span> Peso W</div>
+    <div><span class="sw" style="background:#37d67a"></span> Normal N</div>
+    <div><span class="sw" style="background:#33c9ff"></span> Recentrado</div>
+    <div><span class="sw" style="background:#ffa63d"></span> Arnés (horiz.)</div>
+    <div><span class="sw" style="background:#b980ff"></span> Gas strut</div>
+  </div>
+
+  <h2>Materiales / piezas</h2>
+  <div class="legend">
+    <div><span class="sw" style="background:#c9a06a"></span> Madera (cuenco octagonal, base)</div>
+    <div><span class="sw" style="background:#9aa3ad"></span> Acero / fierro (aro, poste, brazo)</div>
+    <div><span class="sw" style="background:#ff6a3d"></span> Impreso en 3D</div>
+    <div><span class="sw" style="background:#18b6a6"></span> Hidráulico (resorte de gas)</div>
+    <div><span class="sw" style="background:#eef0f2"></span> PTFE / UHMW (deslizante)</div>
+  </div>
+
+  <h2>Brazo hidráulico — cómo funciona</h2>
+  <p class="phys">
+    El brazo se pone <b>como una mochila</b>: la placa va en la espalda y un
+    <b>brazo de 2 eslabones</b> lo une a un <b>hub que gira 360°</b> sobre un
+    rodamiento de bici en el poste trasero. Es <b>pasivo</b>: no hay motores ni
+    cinemática inversa en el hardware — la articulación es <em>compliante</em> y
+    sigue al cuerpo. Al <b>dejarte caer</b>, el <b>resorte de gas</b> se comprime y
+    te sostiene.
+  </p>
+  <details><summary>Física del resorte de gas (muelle neumático)</summary>
+  <p class="phys">
+    Un pistón encierra gas (N₂) a presión. Comprimir el vástago reduce el volumen y,
+    por la ley de un gas en proceso ~adiabático,
+    <code>P·Vᵞ = const</code> (γ≈1.4). La fuerza de soporte es
+    <code>F = P·A_ef</code> con <code>A_ef</code> = área del vástago. Como P sube al
+    comprimir, el muelle es <b>progresivo</b> (más resistente cuanto más te dejas caer).
+    El sellado con aceite añade <b>amortiguación viscosa</b>
+    <code>F_d = c·v</code> que suaviza el rebote. Dimensionado: sostener
+    <code>P_v ≈ 0.3·W</code> ⇒ strut de ~250–400 N (cilindro de silla de oficina o
+    amortiguador de portón).
+  </p></details>
+  <details><summary>¿Hace falta cinemática inversa?</summary>
+  <p class="phys">
+    <b>En el aparato real, no.</b> El brazo es un mecanismo pasivo de juntas de
+    revolución + muelle de gas; se mueve solo siguiendo tu espalda (como un flexo).
+    <b>En esta simulación sí uso IK de 2 eslabones</b> para que el extremo del brazo
+    persiga el punto de la mochila mientras cambias altura, giro o inclinación —
+    así ves cómo el brazo <em>se adapta</em>. Cambia el peso y la altura del
+    humanoide y observa cómo el ángulo del codo y la compresión del strut se
+    ajustan solos.
+  </p></details>
+</div>
+
+<div id="bottom" class="panel">
+  <button id="bAssemble" class="primary">▶ Ensamblar</button>
+  <button id="bExplode">Explotar</button>
+  <button id="bFall" class="acc2">Dejarse caer ⤵</button>
+  <button id="bReset">Reset vista</button>
+  <a class="dl" href="./cad/bowl.stl" download>STL cuenco</a>
+  <a class="dl" href="./cad/overshoe.stl" download>STL calzado</a>
+  <a class="dl" href="./cad/sensor_case.stl" download>STL sensor</a>
+  <a class="dl" href="./cad/arm_hub.stl" download>STL hub</a>
+  <a class="dl" href="./cad/rib_template.stl" download>STL costilla</a>
+  <a class="dl" href="./" >⤓ Código / repo</a>
+</div>
+<div id="hint">Arrastra para orbitar · rueda para zoom · cambia peso/altura y pulsa «Dejarse caer»</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- escena ----------
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0e1116);
+scene.fog = new THREE.Fog(0x0e1116, 6, 16);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.05, 100);
+const CAM0 = new THREE.Vector3(2.4, 1.7, 2.6);
+camera.position.copy(CAM0);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.9, 0);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI*0.49;
+controls.minDistance = 1.2; controls.maxDistance = 9;
+
+scene.add(new THREE.HemisphereLight(0xbcd3ff, 0x2a2620, 0.7));
+const key = new THREE.DirectionalLight(0xffffff, 2.1);
+key.position.set(3,6,4); key.castShadow = true;
+key.shadow.mapSize.set(2048,2048);
+key.shadow.camera.near=1; key.shadow.camera.far=20;
+key.shadow.camera.left=-3; key.shadow.camera.right=3;
+key.shadow.camera.top=3; key.shadow.camera.bottom=-3;
+scene.add(key);
+scene.add(new THREE.DirectionalLight(0x6688ff,0.5).position.set(-4,3,-3));
+
+// suelo
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(6,64).rotateX(-Math.PI/2),
+  new THREE.MeshStandardMaterial({color:0x141922, roughness:1}));
+floor.receiveShadow = true; scene.add(floor);
+const grid = new THREE.GridHelper(12,48,0x24303f,0x1a232e);
+grid.position.y=0.001; scene.add(grid);
+
+// ---------- materiales ----------
+const MAT = {
+  wood:  new THREE.MeshStandardMaterial({color:0xc9a06a, roughness:.85}),
+  woodD: new THREE.MeshStandardMaterial({color:0xb5834f, roughness:.9, side:THREE.DoubleSide}),
+  steel: new THREE.MeshStandardMaterial({color:0x9aa3ad, metalness:.85, roughness:.35}),
+  printed:new THREE.MeshStandardMaterial({color:0xff6a3d, roughness:.5}),
+  hyd:   new THREE.MeshStandardMaterial({color:0x18b6a6, metalness:.5, roughness:.3}),
+  rod:   new THREE.MeshStandardMaterial({color:0xd7dee6, metalness:.9, roughness:.2}),
+  ptfe:  new THREE.MeshStandardMaterial({color:0xeef0f2, roughness:.4}),
+  human: new THREE.MeshStandardMaterial({color:0x4a90d9, roughness:.6}),
+  skin:  new THREE.MeshStandardMaterial({color:0xd7a07a, roughness:.7}),
+};
+// guardamos color base para el resaltado
+for(const m of Object.values(MAT)) m.userData = {base:m.color.clone()};
+
+// ---------- registro de piezas para ensamblaje/resaltado ----------
+const parts = [];             // {obj, order, explode:Vector3, cat}
+function reg(obj, order, explode, cat){
+  obj.userData.assembled = obj.position.clone();
+  obj.userData.explode = explode;
+  obj.userData.order = order;
+  obj.userData.cat = cat;
+  parts.push(obj);
+  obj.traverse(o=>{ if(o.isMesh){o.castShadow=true;o.receiveShadow=true; o.userData.cat=cat;} });
+  return obj;
+}
+function label(text, color){
+  const c=document.createElement('canvas'); c.width=256;c.height=64;
+  const x=c.getContext('2d');
+  x.fillStyle='rgba(12,15,20,.82)'; roundRect(x,0,0,256,64,14); x.fill();
+  x.font='bold 30px system-ui'; x.fillStyle=color||'#e7edf5';
+  x.textAlign='center'; x.textBaseline='middle'; x.fillText(text,128,34);
+  const t=new THREE.CanvasTexture(c);
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:false,transparent:true}));
+  s.scale.set(0.5,0.125,1); return s;
+}
+function roundRect(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);
+  x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath();}
+
+// ---------- parámetros del cuenco ----------
+const R = 0.6;
+let edgeDeg = 13;
+let kBowl = Math.tan(edgeDeg*Math.PI/180)/(2*R);
+const zBowl = r => kBowl*r*r;              // altura (m) sobre el centro
+
+// ================= CUENCO OCTAGONAL (8 módulos de madera) =================
+const bowlGroup = new THREE.Group(); scene.add(bowlGroup);
+const sectors = [];
+function buildBowl(){
+  // 8 sectores lathe (los "8 módulos" del WoODT)
+  for(let i=0;i<8;i++){
+    const pts=[];
+    for(let j=0;j<=24;j++){ const r=R*j/24; pts.push(new THREE.Vector2(Math.max(r,0.0001), zBowl(r))); }
+    const g=new THREE.LatheGeometry(pts,10, i*Math.PI/4, Math.PI/4);
+    const m=new THREE.Mesh(g, MAT.woodD.clone());
+    bowlGroup.add(m);
+    reg(m, i, new THREE.Vector3(Math.cos(i*Math.PI/4+.4)*0.9, 1.4+ i*0.02, Math.sin(i*Math.PI/4+.4)*0.9), 'wood');
+    sectors.push(m);
+  }
+  // marco octagonal de madera (borde)
+  const oct = new THREE.Shape();
+  for(let i=0;i<=8;i++){ const a=i*Math.PI/4+Math.PI/8; const rr=R+0.10;
+    const x=Math.cos(a)*rr, y=Math.sin(a)*rr; i?oct.lineTo(x,y):oct.moveTo(x,y); }
+  const hole=new THREE.Path();
+  for(let i=0;i<=8;i++){ const a=i*Math.PI/4+Math.PI/8; const rr=R+0.005;
+    const x=Math.cos(a)*rr, y=Math.sin(a)*rr; i?hole.lineTo(x,y):hole.moveTo(x,y); }
+  oct.holes.push(hole);
+  const rimG=new THREE.ExtrudeGeometry(oct,{depth:0.12,bevelEnabled:false}).rotateX(-Math.PI/2);
+  const rim=new THREE.Mesh(rimG, MAT.wood.clone());
+  rim.position.y = zBowl(R)-0.12;
+  reg(rim, 8, new THREE.Vector3(0,-1.3,0),'wood');
+  bowlGroup.add(rim);
+}
+buildBowl();
+function rebuildBowl(){
+  kBowl = Math.tan(edgeDeg*Math.PI/180)/(2*R);
+  bowlGroup.clear(); sectors.length=0;
+  for(let i=parts.length-1;i>=0;i--) if(parts[i].userData.cat==='wood') parts.splice(i,1);
+  buildBowl();
+}
+
+// ================= BASE / ESTRUCTURA =================
+const struct = new THREE.Group(); scene.add(struct);
+// base de madera (placa) bajo el cuenco
+const baseplate = new THREE.Mesh(new THREE.CylinderGeometry(R+0.16,R+0.16,0.05,8),
+  MAT.wood.clone()); baseplate.position.y=-0.05; struct.add(baseplate);
+reg(baseplate,9,new THREE.Vector3(0,-1.6,0),'wood');
+// lastre trasero
+const ballast = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.14,0.7),
+  new THREE.MeshStandardMaterial({color:0x6b5540,roughness:1}));
+ballast.position.set(0.35,-0.02,0); struct.add(ballast);
+reg(ballast,10,new THREE.Vector3(1.4,0.2,0),'wood');
+// aro de acero octagonal
+const ringPts=[]; for(let i=0;i<=8;i++){const a=i*Math.PI/4+Math.PI/8;
+  ringPts.push(new THREE.Vector2(Math.cos(a)*(R+0.10),Math.sin(a)*(R+0.10)));}
+const ringShape=new THREE.Shape(ringPts);
+const ringHole=new THREE.Path(); for(let i=0;i<=8;i++){const a=i*Math.PI/4+Math.PI/8;
+  ringHole.lineTo(Math.cos(a)*(R+0.055),Math.sin(a)*(R+0.055));}
+ringShape.holes.push(ringHole);
+const ring=new THREE.Mesh(new THREE.ExtrudeGeometry(ringShape,{depth:0.04,bevelEnabled:false}).rotateX(-Math.PI/2),
+  MAT.steel.clone()); ring.position.y=0.0;
+struct.add(ring); reg(ring,11,new THREE.Vector3(0,1.6,0),'steel');
+// poste trasero
+const HUB = new THREE.Vector3(R+0.16, 0.35, 0);
+const post=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.42,0.06),MAT.steel.clone());
+post.position.set(HUB.x,0.21,0); struct.add(post);
+reg(post,12,new THREE.Vector3(1.6,0,0),'steel');
+
+// ================= BRAZO ARTICULADO (IK) + HIDRÁULICA =================
+const armYaw = new THREE.Group();     // gira 360° sobre el hub
+armYaw.position.copy(HUB); scene.add(armYaw);
+reg(armYaw,13,new THREE.Vector3(1.2,1.2,0),'steel');
+// hub impreso (abraza el rodamiento de bici)
+const hub=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.09,20),MAT.printed.clone());
+armYaw.add(hub); hub.userData.cat='printed';
+const L1=0.6, L2=0.55;
+const link1=new THREE.Mesh(new THREE.BoxGeometry(L1,0.05,0.05),MAT.steel.clone());
+const link2=new THREE.Mesh(new THREE.BoxGeometry(L2,0.045,0.045),MAT.steel.clone());
+link1.userData.cat='steel'; link2.userData.cat='steel';
+armYaw.add(link1,link2);
+const elbow=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.06,16).rotateX(Math.PI/2),
+  MAT.printed.clone()); armYaw.add(elbow); elbow.userData.cat='printed';
+// resorte de gas (hidráulico): cuerpo + vástago
+const strutBody=new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.022,0.22,16),MAT.hyd.clone());
+const strutRod =new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.011,0.24,12),MAT.rod.clone());
+strutBody.userData.cat='hydraulic'; strutRod.userData.cat='hydraulic';
+armYaw.add(strutBody,strutRod);
+// placa del chaleco/mochila (impresa) al final del brazo
+const vest=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.26,0.22),MAT.printed.clone());
+vest.userData.cat='printed'; armYaw.add(vest);
+const strutLabel=label('gas strut','#18b6a6'); strutLabel.visible=false; scene.add(strutLabel);
+const hubLabel=label('hub 360° (rodamiento bici)','#ff6a3d'); hubLabel.visible=false; scene.add(hubLabel);
+
+function placeSegment(mesh, ax,ay, bx,by){ // ubica un box (largo en X local) entre 2 puntos del plano
+  const mx=(ax+bx)/2, my=(ay+by)/2, ang=Math.atan2(by-ay,bx-ax);
+  mesh.position.set(mx,my,0); mesh.rotation.set(0,0,ang);
+}
+let elbowAngleDeg=0, strutLen=0.22;
+function solveArm(target){
+  const d=target.clone().sub(HUB);
+  const horiz=Math.hypot(d.x,d.z);
+  armYaw.rotation.y = -Math.atan2(d.z,d.x);          // apunta al objetivo
+  const px=horiz, py=d.y;                              // plano local (x=horiz, y=vert)
+  let D=Math.min(Math.hypot(px,py),(L1+L2)*0.999);
+  const c2=THREE.MathUtils.clamp((D*D-L1*L1-L2*L2)/(2*L1*L2),-1,1);
+  const a2=Math.acos(c2);                              // ángulo interior del codo
+  const a1=Math.atan2(py,px)+Math.acos(THREE.MathUtils.clamp((D*D+L1*L1-L2*L2)/(2*L1*D),-1,1));
+  const ex=Math.cos(a1)*L1, ey=Math.sin(a1)*L1;        // codo (fin = objetivo px,py)
+  placeSegment(link1,0,0,ex,ey);
+  placeSegment(link2,ex,ey,px,py);
+  elbow.position.set(ex,ey,0);
+  vest.position.set(px,py,0); vest.rotation.z=0;
+  // strut entre base (0.06,-0.02) y punto al 55% de link1
+  const bx=0.06,by=-0.02, tx=ex*0.6, ty=ey*0.6;
+  placeSegment(strutBody,bx,by,tx,ty);
+  strutRod.position.copy(strutBody.position); strutRod.rotation.copy(strutBody.rotation);
+  strutLen=Math.hypot(tx-bx,ty-by);
+  elbowAngleDeg=(Math.PI-a2)*180/Math.PI;
+  // etiquetas
+  strutBody.getWorldPosition(strutLabel.position); strutLabel.position.y+=0.14;
+  hub.getWorldPosition(hubLabel.position); hubLabel.position.y+=0.16;
+}
+
+// ================= HUMANOIDE (paramétrico + walk) =================
+const human = new THREE.Group(); scene.add(human);
+reg(human,14,new THREE.Vector3(-1.8,0.4,0),'human');
+const J = {};
+function limb(len,r1,r2,mat){const m=new THREE.Mesh(
+  new THREE.CylinderGeometry(r1,r2,len,12),mat);m.geometry.translate(0,-len/2,0);return m;}
+function buildHuman(){
+  J.root=new THREE.Group(); human.add(J.root);
+  J.pelvis=new THREE.Group(); J.pelvis.position.y=0.95; J.root.add(J.pelvis);
+  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(0.14,0.36,6,12),MAT.human);
+  torso.position.y=0.30; J.pelvis.add(torso); J.torso=torso;
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.11,20,16),MAT.skin);
+  head.position.y=0.66; J.pelvis.add(head);
+  // brazos
+  J.armL=new THREE.Group(); J.armL.position.set(-0.19,0.5,0); J.pelvis.add(J.armL);
+  J.armR=new THREE.Group(); J.armR.position.set( 0.19,0.5,0); J.pelvis.add(J.armR);
+  J.armL.add(limb(0.52,0.045,0.035,MAT.human));
+  J.armR.add(limb(0.52,0.045,0.035,MAT.human));
+  // piernas
+  J.legL=new THREE.Group(); J.legL.position.set(-0.09,0,0); J.pelvis.add(J.legL);
+  J.legR=new THREE.Group(); J.legR.position.set( 0.09,0,0); J.pelvis.add(J.legR);
+  for(const g of [J.legL,J.legR]){
+    const thigh=limb(0.46,0.07,0.055,MAT.human); g.add(thigh);
+    const shinG=new THREE.Group(); shinG.position.y=-0.46; g.add(shinG);
+    shinG.add(limb(0.44,0.05,0.04,MAT.human));
+    const foot=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.05,0.22),MAT.printed.clone());
+    foot.position.set(0,-0.46,0.05); foot.userData.cat='printed'; shinG.add(foot);
+    // pad PTFE
+    const pad=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.012,16),MAT.ptfe.clone());
+    pad.position.set(0,-0.49,0.05); pad.userData.cat='ptfe'; shinG.add(pad);
+    // sensor impreso
+    const sc=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.03,0.04),MAT.printed.clone());
+    sc.position.set(0,-0.4,-0.06); sc.userData.cat='printed'; shinG.add(sc);
+    g.userData.shin=shinG;
+  }
+}
+buildHuman();
+
+// ---------- flechas de fuerza ----------
+const G=9.80665;
+const arrows={};
+function mkArrow(color){const a=new THREE.ArrowHelper(new THREE.Vector3(0,1,0),
+  new THREE.Vector3(),0.3,color,0.09,0.05);scene.add(a);return a;}
+arrows.W=mkArrow(0xff4d4d); arrows.N=mkArrow(0x37d67a); arrows.R=mkArrow(0x33c9ff);
+arrows.H=mkArrow(0xffa63d); arrows.S=mkArrow(0xb980ff);
+const FS=0.00055; // escala visual m/N
+
+// ---------- estado / UI ----------
+let weight=70, heightM=1.75, leanDeg=12, turnDeg=0;
+let assembly=1, assemblyTarget=1, walkOn=true, fallAnim=null;
+const $=id=>document.getElementById(id);
+function bindRange(id,vid,fmt,cb){const e=$(id);e.oninput=()=>{cb(+e.value);$(vid).textContent=fmt(+e.value);};}
+bindRange('sW','vW',v=>v+' kg',v=>weight=v);
+bindRange('sH','vH',v=>(v/100).toFixed(2)+' m',v=>heightM=v/100);
+bindRange('sL','vL',v=>v+'°',v=>leanDeg=v);
+bindRange('sT','vT',v=>v+'°',v=>turnDeg=v);
+bindRange('sB','vB',v=>v+'°',v=>{edgeDeg=v;rebuildBowl();});
+$('cWalk').onchange=e=>walkOn=e.target.checked;
+$('cForces').onchange=e=>{for(const a of Object.values(arrows))a.visible=e.target.checked;};
+$('cLabels').onchange=e=>{strutLabel.visible=hubLabel.visible=e.target.checked;};
+$('cPrinted').onchange=e=>highlight('printed',e.target.checked);
+$('cHyd').onchange=e=>highlight('hydraulic',e.target.checked);
+$('bAssemble').onclick=()=>assemblyTarget=1;
+$('bExplode').onclick=()=>assemblyTarget=0;
+$('bReset').onclick=()=>{camera.position.copy(CAM0);controls.target.set(0,0.9,0);};
+$('bFall').onclick=()=>{fallAnim={t:0};};
+function highlight(cat,on){
+  scene.traverse(o=>{ if(o.isMesh && o.userData.cat===cat){
+    o.material.emissive=new THREE.Color(on? (cat==='hydraulic'?0x0a5a52:0x8a2a12):0x000000);
+    o.material.emissiveIntensity=on?1:0;
+  }});
+}
+
+// ---------- bucle ----------
+let t=0;
+function tick(){
+  requestAnimationFrame(tick);
+  const dt=1/60; t+=dt;
+  // ensamblaje suave
+  assembly += (assemblyTarget-assembly)*0.06;
+  const N=parts.length, span=0.6;
+  for(const p of parts){
+    const t0=(p.userData.order/N)*(1-span);
+    const local=THREE.MathUtils.clamp((assembly-t0)/span,0,1);
+    const e=1-local; // 1 explotado
+    p.position.copy(p.userData.assembled.clone().add(p.userData.explode.clone().multiplyScalar(e)));
+  }
+  // fall demo
+  let lean=leanDeg;
+  if(fallAnim){ fallAnim.t+=dt/1.6; const u=fallAnim.t;
+    lean=leanDeg + Math.sin(Math.min(u,1)*Math.PI)*16;
+    if(u>=1) fallAnim=null; }
+  // humanoide: escala por altura, giro, inclinación, walk
+  const hs=heightM/1.75;
+  human.scale.setScalar(hs);
+  human.rotation.y = turnDeg*Math.PI/180;
+  const assembledEnough = assembly>0.85;
+  let stanceR=0.18, footY=zBowl(0.18), phase=0;
+  if(J.pelvis){
+    const ln=lean*Math.PI/180;
+    J.pelvis.rotation.z = 0; J.root.rotation.z = -ln*0.15;
+    J.pelvis.position.y = 0.95 - lean*0.006;             // baja al caer
+    if(walkOn && assembledEnough && !fallAnim){
+      phase=t*2.4;
+      const sw=Math.sin(phase)*0.5;
+      J.legL.rotation.x=sw; J.legR.rotation.x=-sw;
+      J.legL.userData.shin.rotation.x=Math.max(0,-Math.cos(phase))*0.7;
+      J.legR.userData.shin.rotation.x=Math.max(0, Math.cos(phase))*0.7;
+      J.armL.rotation.x=-sw*0.8; J.armR.rotation.x=sw*0.8;
+      J.pelvis.position.y += Math.abs(Math.cos(phase))*0.02;
+      stanceR = 0.12+Math.abs(sw)*0.28;
+    } else {
+      J.legL.rotation.x=J.legR.rotation.x=0.15;
+      J.legL.userData.shin.rotation.x=J.legR.userData.shin.rotation.x=0.05;
+      J.armL.rotation.x=J.armR.rotation.x=0;
+    }
+    footY=zBowl(stanceR);
+    J.root.position.y = 0;
+  }
+  // punto de la mochila (espalda) en el mundo
+  const back=new THREE.Vector3();
+  if(J.torso){ J.torso.getWorldPosition(back);
+    const bdir=new THREE.Vector3(Math.sin(human.rotation.y),0,Math.cos(human.rotation.y)); // +X trasero girado
+    back.add(bdir.multiplyScalar(0.16)); back.y+=0.05; }
+  solveArm(back);
+
+  // ---------- fuerzas ----------
+  const W=weight*G;
+  const th=Math.atan(2*kBowl*stanceR);       // pendiente local en el pie de apoyo
+  const Nn=W*Math.cos(th), Fr=W*Math.sin(th);
+  const Ph=W*Math.tan(lean*Math.PI/180);
+  const Pv=0.32*W; const Fs=Pv;              // soporte del strut ~ vertical
+  const Mhub=Ph*1.05;
+  // posiciones
+  const stanceWorld=new THREE.Vector3(-Math.cos(human.rotation.y)*stanceR,footY+0.02,
+                                       Math.sin(human.rotation.y)*stanceR);
+  // W desde el CoM
+  const com=new THREE.Vector3(); if(J.pelvis) J.pelvis.getWorldPosition(com); com.y+=0.1;
+  setArrow(arrows.W, com, new THREE.Vector3(0,-1,0), W*FS);
+  setArrow(arrows.N, stanceWorld, new THREE.Vector3(0,Math.cos(th),0).normalize(), Nn*FS);
+  const toC=new THREE.Vector3().subVectors(new THREE.Vector3(0,footY,0),stanceWorld).setY(0).normalize();
+  setArrow(arrows.R, stanceWorld, toC, Fr*FS);
+  const backDir=new THREE.Vector3(-Math.cos(human.rotation.y),0,Math.sin(human.rotation.y));
+  setArrow(arrows.H, back.clone(), backDir, Ph*FS);
+  setArrow(arrows.S, strutBody.getWorldPosition(new THREE.Vector3()),
+           new THREE.Vector3(0,1,0), Fs*FS);
+  // lecturas
+  $('rW').textContent=W.toFixed(0)+' N';
+  $('rN').textContent=Nn.toFixed(0)+' N';
+  $('rR').textContent=Fr.toFixed(0)+' N';
+  $('rH').textContent=Ph.toFixed(0)+' N';
+  $('rS').textContent=Fs.toFixed(0)+' N';
+  $('rM').textContent=Mhub.toFixed(0)+' N·m';
+
+  controls.update();
+  renderer.render(scene,camera);
+}
+function setArrow(a,pos,dir,len){a.position.copy(pos);a.setDirection(dir.clone().normalize());
+  a.setLength(Math.max(len,0.03),Math.min(0.09,len*0.3+0.03),Math.min(0.05,len*0.15+0.02));}
+tick();
+
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);});
+</script>
