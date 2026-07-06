@@ -181,7 +181,7 @@ scene.background = new THREE.Color(0x0e1116);
 scene.fog = new THREE.Fog(0x0e1116, 6, 16);
 
 const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.05, 100);
-const CAM0 = new THREE.Vector3(-2.3, 1.45, 2.5);   // de FRENTE al humanoide (mira hacia +X)
+const CAM0 = new THREE.Vector3(-2.7, 1.4, 1.1);   // de FRENTE al humanoide (lado -X)
 camera.position.copy(CAM0);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -299,7 +299,7 @@ reg(baseplate,9,new THREE.Vector3(0,-0.55,0),'wood');
 // lastre trasero
 const ballast = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.14,0.7),
   new THREE.MeshStandardMaterial({color:0x6b5540,roughness:1}));
-ballast.position.set(0.35,-0.02,0); struct.add(ballast);
+ballast.position.set(0.35,-0.15,0); struct.add(ballast);   // oculto bajo la base (no asoma por el cuenco)
 reg(ballast,10,new THREE.Vector3(0,-0.85,0),'wood');
 // aro de acero octagonal
 const ringPts=[]; for(let i=0;i<=8;i++){const a=i*Math.PI/4+Math.PI/8;
@@ -390,6 +390,9 @@ function buildHuman(){
   torso.position.y=0.30; J.pelvis.add(torso); J.torso=torso;
   const head=new THREE.Mesh(new THREE.SphereGeometry(0.11,20,16),MAT.skin);
   head.position.y=0.66; J.pelvis.add(head);
+  // nariz: marca el FRENTE (mira hacia -X, lado opuesto al poste/mochila)
+  const nose=new THREE.Mesh(new THREE.ConeGeometry(0.035,0.09,12),MAT.skin);
+  nose.position.set(-0.10,0.66,0); nose.rotation.z=Math.PI/2; J.pelvis.add(nose);
   // brazos
   J.armL=new THREE.Group(); J.armL.position.set(-0.19,0.5,0); J.pelvis.add(J.armL);
   J.armR=new THREE.Group(); J.armR.position.set( 0.19,0.5,0); J.pelvis.add(J.armR);
@@ -473,6 +476,11 @@ $('bAssemble').onclick=()=>assemblyTarget=1;
 $('bExplode').onclick=()=>assemblyTarget=0;
 $('bReset').onclick=()=>{camera.position.copy(CAM0);controls.target.set(0,0.9,0);};
 $('bFall').onclick=()=>{fallAnim={t:0};};
+// deep-link por URL (para capturas / compartir estado): #go=ensamblar, #fall=dejarse caer
+(function(){ const h=location.hash.toLowerCase();
+  if(h.includes('go')||h.includes('assembled')||h.includes('fall')) assemblyTarget=1;
+  if(h.includes('fall')) setTimeout(()=>{ fallAnim={t:0}; },4200);
+})();
 function highlight(cat,on){
   scene.traverse(o=>{ if(o.isMesh && o.userData.cat===cat){
     o.material.emissive=new THREE.Color(on? (cat==='hydraulic'?0x0a5a52:0x8a2a12):0x000000);
