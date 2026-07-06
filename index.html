@@ -393,27 +393,26 @@ function buildHuman(){
   // nariz: marca el FRENTE (mira hacia -X, lado opuesto al poste/mochila)
   const nose=new THREE.Mesh(new THREE.ConeGeometry(0.035,0.09,12),MAT.skin);
   nose.position.set(-0.10,0.66,0); nose.rotation.z=Math.PI/2; J.pelvis.add(nose);
-  // brazos
-  J.armL=new THREE.Group(); J.armL.position.set(-0.19,0.5,0); J.pelvis.add(J.armL);
-  J.armR=new THREE.Group(); J.armR.position.set( 0.19,0.5,0); J.pelvis.add(J.armR);
+  // brazos (izquierda/derecha = ±Z; frente = -X)
+  J.armL=new THREE.Group(); J.armL.position.set(0,0.5,-0.19); J.pelvis.add(J.armL);
+  J.armR=new THREE.Group(); J.armR.position.set(0,0.5, 0.19); J.pelvis.add(J.armR);
   J.armL.add(limb(0.52,0.045,0.035,MAT.human));
   J.armR.add(limb(0.52,0.045,0.035,MAT.human));
-  // piernas
-  J.legL=new THREE.Group(); J.legL.position.set(-0.09,0,0); J.pelvis.add(J.legL);
-  J.legR=new THREE.Group(); J.legR.position.set( 0.09,0,0); J.pelvis.add(J.legR);
+  // piernas (izquierda/derecha = ±Z)
+  J.legL=new THREE.Group(); J.legL.position.set(0,0,-0.09); J.pelvis.add(J.legL);
+  J.legR=new THREE.Group(); J.legR.position.set(0,0, 0.09); J.pelvis.add(J.legR);
   J.feet=[];
   for(const g of [J.legL,J.legR]){
     const thigh=limb(0.46,0.07,0.055,MAT.human); g.add(thigh);
     const shinG=new THREE.Group(); shinG.position.y=-0.46; g.add(shinG);
     shinG.add(limb(0.44,0.05,0.04,MAT.human));
-    const foot=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.05,0.22),MAT.printed.clone());
-    foot.position.set(0,-0.46,0.05); foot.userData.cat='printed'; shinG.add(foot); J.feet.push(foot);
-    // pad PTFE
+    // pie apunta al FRENTE (-X): largo en X, ancho en Z
+    const foot=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.05,0.09),MAT.printed.clone());
+    foot.position.set(-0.05,-0.46,0); foot.userData.cat='printed'; shinG.add(foot); J.feet.push(foot);
     const pad=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.012,16),MAT.ptfe.clone());
-    pad.position.set(0,-0.49,0.05); pad.userData.cat='ptfe'; shinG.add(pad);
-    // sensor impreso
-    const sc=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.03,0.04),MAT.printed.clone());
-    sc.position.set(0,-0.4,-0.06); sc.userData.cat='printed'; shinG.add(sc);
+    pad.position.set(-0.05,-0.49,0); pad.userData.cat='ptfe'; shinG.add(pad);
+    const sc=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.03,0.05),MAT.printed.clone());
+    sc.position.set(0.06,-0.40,0); sc.userData.cat='printed'; shinG.add(sc);
     g.userData.shin=shinG;
   }
 }
@@ -520,16 +519,16 @@ function tick(){
     if(walkOn && assembledEnough && !fallAnim){
       phase=t*2.4;
       const sw=Math.sin(phase)*0.5;
-      J.legL.rotation.x=sw; J.legR.rotation.x=-sw;
-      J.legL.userData.shin.rotation.x=Math.max(0,-Math.cos(phase))*0.7;
-      J.legR.userData.shin.rotation.x=Math.max(0, Math.cos(phase))*0.7;
-      J.armL.rotation.x=-sw*0.8; J.armR.rotation.x=sw*0.8;
+      J.legL.rotation.z=sw; J.legR.rotation.z=-sw;                    // zancada adelante/atrás (eje Z)
+      J.legL.userData.shin.rotation.z=Math.max(0,-Math.cos(phase))*0.7;
+      J.legR.userData.shin.rotation.z=Math.max(0, Math.cos(phase))*0.7;
+      J.armL.rotation.z=-sw*0.8; J.armR.rotation.z=sw*0.8;            // brazos opuestos
       J.pelvis.position.y += Math.abs(Math.cos(phase))*0.02;
       stanceR = 0.12+Math.abs(sw)*0.28;
     } else {
-      J.legL.rotation.x=J.legR.rotation.x=0.15;
-      J.legL.userData.shin.rotation.x=J.legR.userData.shin.rotation.x=0.05;
-      J.armL.rotation.x=J.armR.rotation.x=0;
+      J.legL.rotation.z=J.legR.rotation.z=0.10;
+      J.legL.userData.shin.rotation.z=J.legR.userData.shin.rotation.z=0.05;
+      J.armL.rotation.z=J.armR.rotation.z=0;
     }
     footY=zBowl(stanceR);
     J.root.position.y = 0;
@@ -537,8 +536,8 @@ function tick(){
   // agachado (crouch) proporcional a la inclinación
   const crouch=THREE.MathUtils.clamp((lean-6)/24,0,1)*0.6;
   if(J.pelvis){
-    J.legL.rotation.x+=crouch; J.legR.rotation.x+=crouch;
-    J.legL.userData.shin.rotation.x+=crouch*1.5; J.legR.userData.shin.rotation.x+=crouch*1.5;
+    J.legL.rotation.z+=crouch*0.4; J.legR.rotation.z+=crouch*0.4;
+    J.legL.userData.shin.rotation.z+=crouch*1.4; J.legR.userData.shin.rotation.z+=crouch*1.4;
     J.pelvis.position.y-=crouch*0.12;
   }
   // contacto de los pies con el cuenco (no atraviesan la superficie)
