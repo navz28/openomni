@@ -167,6 +167,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // ---------- escena ----------
 const app = document.getElementById('app');
@@ -372,51 +373,49 @@ function solveArm(target){
   hub.getWorldPosition(hubLabel.position); hubLabel.position.y+=0.16;
 }
 
-// ================= HUMANOIDE (paramétrico + walk) =================
+// ================= HUMANOIDE (Xbot GLB rigged, con animación de caminar) =================
 const human = new THREE.Group(); scene.add(human);
-reg(human,14,new THREE.Vector3(0,1.0,0),'human');   // explota hacia arriba (queda centrado y de frente)
-const J = {};
-function limb(len,r1,r2,mat){const m=new THREE.Mesh(
-  new THREE.CylinderGeometry(r1,r2,len,12),mat);m.geometry.translate(0,-len/2,0);return m;}
-function buildHuman(){
-  J.root=new THREE.Group(); human.add(J.root);
-  J.pelvis=new THREE.Group(); J.pelvis.position.y=0.95; J.root.add(J.pelvis);
-  // ancla de la mochila: en la ESPALDA (+X, lado del poste), a la altura de los omóplatos
-  J.back=new THREE.Object3D(); J.back.position.set(0.17,0.42,0); J.pelvis.add(J.back);
-  // placa de la mochila PEGADA a la espalda (cara plana contra el torso, se mueve con el cuerpo)
-  const backPlate=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.30,0.24),MAT.printed.clone());
-  backPlate.position.set(0.02,0,0); backPlate.userData.cat='printed'; J.back.add(backPlate);
-  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(0.14,0.36,6,12),MAT.human);
-  torso.position.y=0.30; J.pelvis.add(torso); J.torso=torso;
-  const head=new THREE.Mesh(new THREE.SphereGeometry(0.11,20,16),MAT.skin);
-  head.position.y=0.66; J.pelvis.add(head);
-  // nariz: marca el FRENTE (mira hacia -X, lado opuesto al poste/mochila)
-  const nose=new THREE.Mesh(new THREE.ConeGeometry(0.035,0.09,12),MAT.skin);
-  nose.position.set(-0.10,0.66,0); nose.rotation.z=Math.PI/2; J.pelvis.add(nose);
-  // brazos (izquierda/derecha = ±Z; frente = -X)
-  J.armL=new THREE.Group(); J.armL.position.set(0,0.5,-0.19); J.pelvis.add(J.armL);
-  J.armR=new THREE.Group(); J.armR.position.set(0,0.5, 0.19); J.pelvis.add(J.armR);
-  J.armL.add(limb(0.52,0.045,0.035,MAT.human));
-  J.armR.add(limb(0.52,0.045,0.035,MAT.human));
-  // piernas (izquierda/derecha = ±Z)
-  J.legL=new THREE.Group(); J.legL.position.set(0,0,-0.09); J.pelvis.add(J.legL);
-  J.legR=new THREE.Group(); J.legR.position.set(0,0, 0.09); J.pelvis.add(J.legR);
-  J.feet=[];
-  for(const g of [J.legL,J.legR]){
-    const thigh=limb(0.46,0.07,0.055,MAT.human); g.add(thigh);
-    const shinG=new THREE.Group(); shinG.position.y=-0.46; g.add(shinG);
-    shinG.add(limb(0.44,0.05,0.04,MAT.human));
-    // pie apunta al FRENTE (-X): largo en X, ancho en Z
-    const foot=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.05,0.09),MAT.printed.clone());
-    foot.position.set(-0.05,-0.46,0); foot.userData.cat='printed'; shinG.add(foot); J.feet.push(foot);
-    const pad=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.012,16),MAT.ptfe.clone());
-    pad.position.set(-0.05,-0.49,0); pad.userData.cat='ptfe'; shinG.add(pad);
-    const sc=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.03,0.05),MAT.printed.clone());
-    sc.position.set(0.06,-0.40,0); sc.userData.cat='printed'; shinG.add(sc);
-    g.userData.shin=shinG;
-  }
-}
-buildHuman();
+reg(human,14,new THREE.Vector3(0,1.0,0),'human');       // explota hacia arriba
+const tilt = new THREE.Group(); human.add(tilt);         // inclinación / dejarse caer (eje Z local)
+const modelWrap = new THREE.Group(); tilt.add(modelWrap);
+modelWrap.rotation.y = -Math.PI/2;                       // Xbot pasa a mirar -X (espalda = +X, lado del poste)
+const J = { ready:false, feet:[] };
+let mixer=null;
+
+// placa de la mochila (impresa): la coloco cada frame sobre la columna del esqueleto
+const backHolder = new THREE.Object3D(); scene.add(backHolder);
+const backPlate = new THREE.Mesh(new THREE.BoxGeometry(0.03,0.30,0.24), MAT.printed.clone());
+backPlate.position.set(0.10,0,0); backPlate.userData.cat='printed';
+backHolder.add(backPlate);
+
+const XBOT='https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb';
+new GLTFLoader().load(XBOT, (gltf)=>{
+  const m=gltf.scene;
+  m.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.frustumCulled=false; } });
+  modelWrap.add(m);
+  // altura fiable por extensión del esqueleto (el bbox de un skinned mesh no es de fiar)
+  const v=new THREE.Vector3(); let ymin=Infinity, ymax=-Infinity;
+  m.updateWorldMatrix(true,true);
+  m.traverse(o=>{ if(o.isBone){ o.getWorldPosition(v); ymin=Math.min(ymin,v.y); ymax=Math.max(ymax,v.y); } });
+  const span=(ymax-ymin)||1;
+  m.scale.setScalar(1.58/span);              // huesos pie→cabeza ≈ 0.9·estatura ⇒ cuerpo ~1.75 m
+  m.position.y -= ymin*(1.58/span);          // tobillo más bajo a y≈0
+  // localizar huesos (columna, cadera, pies)
+  m.traverse(o=>{ if(o.isBone){ const n=o.name.toLowerCase();
+    if(!J.spine && /spine2/.test(n)) J.spine=o;
+    if(!J.hips  && /hips/.test(n))   J.hips=o;
+    if(!J.footL && /leftfoot/.test(n)  && !/toe/.test(n)) J.footL=o;
+    if(!J.footR && /rightfoot/.test(n) && !/toe/.test(n)) J.footR=o;
+  }});
+  if(!J.spine) m.traverse(o=>{ if(o.isBone && !J.spine && /spine/.test(o.name.toLowerCase())) J.spine=o; });
+  J.feet=[J.footL,J.footR].filter(Boolean);
+  // animación de caminar
+  mixer=new THREE.AnimationMixer(m);
+  const clip=gltf.animations.find(a=>/walk/i.test(a.name))
+          || gltf.animations.find(a=>/run/i.test(a.name)) || gltf.animations[0];
+  if(clip) mixer.clipAction(clip).play();
+  J.ready=true;
+}, undefined, e=>console.warn('Xbot load error', e));
 
 // ---------- flechas de fuerza ----------
 const G=9.80665;
@@ -506,51 +505,33 @@ function tick(){
   if(fallAnim){ fallAnim.t+=dt/1.6; const u=fallAnim.t;
     lean=leanDeg + Math.sin(Math.min(u,1)*Math.PI)*16;
     if(u>=1) fallAnim=null; }
-  // humanoide: escala por altura, giro, inclinación, walk
-  const hs=heightM/1.75;
-  human.scale.setScalar(hs);
+  // humanoide (Xbot): escala por altura, giro (yaw), inclinación (tilt), animación de caminar
+  human.scale.setScalar(heightM/1.75);
   human.rotation.y = turnDeg*Math.PI/180;
-  const assembledEnough = assembly>0.85;
-  let stanceR=0.18, footY=zBowl(0.18), phase=0;
-  if(J.pelvis){
-    const ln=lean*Math.PI/180;
-    J.pelvis.rotation.z = 0; J.root.rotation.z = -ln*0.15;
-    J.pelvis.position.y = 0.95 - lean*0.006;             // baja al caer
-    if(walkOn && assembledEnough && !fallAnim){
-      phase=t*2.4;
-      const sw=Math.sin(phase)*0.5;
-      J.legL.rotation.z=sw; J.legR.rotation.z=-sw;                    // zancada adelante/atrás (eje Z)
-      J.legL.userData.shin.rotation.z=Math.max(0,-Math.cos(phase))*0.7;
-      J.legR.userData.shin.rotation.z=Math.max(0, Math.cos(phase))*0.7;
-      J.armL.rotation.z=-sw*0.8; J.armR.rotation.z=sw*0.8;            // brazos opuestos
-      J.pelvis.position.y += Math.abs(Math.cos(phase))*0.02;
-      stanceR = 0.12+Math.abs(sw)*0.28;
-    } else {
-      J.legL.rotation.z=J.legR.rotation.z=0.10;
-      J.legL.userData.shin.rotation.z=J.legR.userData.shin.rotation.z=0.05;
-      J.armL.rotation.z=J.armR.rotation.z=0;
-    }
-    footY=zBowl(stanceR);
-    J.root.position.y = 0;
-  }
-  // agachado (crouch) proporcional a la inclinación
-  const crouch=THREE.MathUtils.clamp((lean-6)/24,0,1)*0.6;
-  if(J.pelvis){
-    J.legL.rotation.z+=crouch*0.4; J.legR.rotation.z+=crouch*0.4;
-    J.legL.userData.shin.rotation.z+=crouch*1.4; J.legR.userData.shin.rotation.z+=crouch*1.4;
-    J.pelvis.position.y-=crouch*0.12;
-  }
-  // contacto de los pies con el cuenco (no atraviesan la superficie)
-  if(J.feet && assembly>0.9){
-    let low=Infinity;
+  tilt.rotation.z = lean*Math.PI/180 * 0.9;                 // inclinarse / dejarse caer
+  if(mixer){ mixer.timeScale = (walkOn && assembly>0.85 && !fallAnim) ? 1.0 : 0.0; mixer.update(dt); }
+
+  // contacto de los pies con el cuenco (apoya el pie más bajo sobre la superficie)
+  let stanceR=0.18, footY=zBowl(0.18), stancePos=null;
+  if(J.ready && J.feet.length){
+    let low=Infinity, lowW=null;
     for(const ft of J.feet){ ft.getWorldPosition(tmpV);
       const rr=Math.min(Math.hypot(tmpV.x,tmpV.z),R);
-      const pen=tmpV.y - zBowl(rr); if(pen<low) low=pen; }
-    if(isFinite(low)) human.position.y -= low;      // apoya el pie más bajo sobre la superficie
+      const pen=tmpV.y - (zBowl(rr)+0.06); if(pen<low){ low=pen; lowW=tmpV.clone(); } }
+    if(assembly>0.9 && isFinite(low)) human.position.y -= low;
+    if(lowW){ stanceR=Math.min(Math.hypot(lowW.x,lowW.z),R); footY=zBowl(stanceR);
+      stancePos=new THREE.Vector3(lowW.x,footY+0.02,lowW.z); }
   }
-  // punto de la mochila (ESPALDA, lado del poste) en el mundo
+
+  // mochila sobre la columna + brazo IK que la persigue
   const back=new THREE.Vector3();
-  if(J.back) J.back.getWorldPosition(back);
+  if(J.ready && J.spine){
+    J.spine.getWorldPosition(back);
+    backHolder.position.copy(back);
+    backHolder.rotation.y = human.rotation.y;               // +X local = normal de la espalda
+    backHolder.visible = assembly>0.5;
+    back.add(new THREE.Vector3(Math.cos(human.rotation.y),0,-Math.sin(human.rotation.y)).multiplyScalar(0.12));
+  } else back.copy(HUB).add(new THREE.Vector3(-0.35,0.95,0));
   if(assembly>0.7) solveArm(back);
   else solveArm(HUB.clone().add(new THREE.Vector3(0.32,0.55,0)));  // brazo plegado en vista explotada
 
@@ -561,15 +542,16 @@ function tick(){
   const Ph=W*Math.tan(lean*Math.PI/180);
   const Pv=0.32*W; const Fs=Pv;              // soporte del strut ~ vertical
   const Mhub=Ph*1.05;
-  // posiciones
-  const stanceWorld=new THREE.Vector3(-Math.cos(human.rotation.y)*stanceR,footY+0.02,
-                                       Math.sin(human.rotation.y)*stanceR);
-  // W desde el CoM
-  const com=new THREE.Vector3(); if(J.pelvis) J.pelvis.getWorldPosition(com); com.y+=0.1;
+  const sp = stancePos || new THREE.Vector3(-Math.cos(human.rotation.y)*stanceR,footY+0.02,
+                                            Math.sin(human.rotation.y)*stanceR);
+  const com=new THREE.Vector3();
+  if(J.ready && J.hips) J.hips.getWorldPosition(com); else com.set(0,1.0,0);
+  com.y+=0.05;
   setArrow(arrows.W, 'W', com, new THREE.Vector3(0,-1,0), W*FS);
-  setArrow(arrows.N, 'N', stanceWorld, new THREE.Vector3(0,Math.cos(th),0).normalize(), Nn*FS);
-  const toC=new THREE.Vector3().subVectors(new THREE.Vector3(0,footY,0),stanceWorld).setY(0).normalize();
-  setArrow(arrows.R, 'R', stanceWorld, toC, Fr*FS);
+  setArrow(arrows.N, 'N', sp, new THREE.Vector3(0,Math.cos(th),0).normalize(), Nn*FS);
+  const toC=new THREE.Vector3().subVectors(new THREE.Vector3(0,footY,0),sp).setY(0);
+  if(toC.lengthSq()<1e-6) toC.set(1,0,0); toC.normalize();
+  setArrow(arrows.R, 'R', sp, toC, Fr*FS);
   const backDir=new THREE.Vector3(Math.cos(human.rotation.y),0,-Math.sin(human.rotation.y)); // hacia el poste
   setArrow(arrows.H, 'H', back.clone(), backDir, Ph*FS);
   setArrow(arrows.S, 'S', strutBody.getWorldPosition(new THREE.Vector3()),

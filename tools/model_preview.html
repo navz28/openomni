@@ -1,0 +1,76 @@
+<meta charset="utf-8"><title>Model preview</title>
+<style>html,body{margin:0;height:100%;background:#0e1116;overflow:hidden}
+#lbl{position:absolute;left:16px;top:12px;font:600 20px system-ui;color:#e7edf5;
+  background:#0c0f14cc;padding:6px 12px;border-radius:8px}</style>
+<div id="lbl">…</div>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const P = new URLSearchParams(location.search);
+const MODEL = P.get('m');
+document.getElementById('lbl').textContent = P.get('n') || MODEL;
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0e1116);
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.01, 100);
+
+scene.add(new THREE.HemisphereLight(0xbcd3ff, 0x2a2620, 1.0));
+const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(3,6,4);
+key.castShadow = true; scene.add(key);
+scene.add(new THREE.DirectionalLight(0x88aaff,0.6).position.set(-4,3,-5));
+
+const floor = new THREE.Mesh(new THREE.CircleGeometry(6,48).rotateX(-Math.PI/2),
+  new THREE.MeshStandardMaterial({color:0x161b24, roughness:1}));
+floor.receiveShadow = true; scene.add(floor);
+
+let mixer=null; const clock = new THREE.Clock();
+new GLTFLoader().load(MODEL, (gltf)=>{
+  const model = gltf.scene;
+  model.traverse(o=>{ if(o.isMesh){o.castShadow=true; o.frustumCulled=false;} });
+  scene.add(model);
+
+  // encuadre automático por bounding box
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const maxd = Math.max(size.x, size.y, size.z) || 1;
+  model.position.y -= box.min.y;                       // pies al suelo
+  const cy = center.y - box.min.y;
+  camera.position.set(maxd*0.9, cy + size.y*0.15, maxd*2.2);
+  camera.lookAt(0, cy, 0);
+  window.__loaded = true;
+
+  // reproducir animación de caminar (o la primera)
+  if (gltf.animations && gltf.animations.length){
+    mixer = new THREE.AnimationMixer(model);
+    const clip = gltf.animations.find(a=>/walk/i.test(a.name))
+              || gltf.animations.find(a=>/run/i.test(a.name))
+              || gltf.animations[0];
+    mixer.clipAction(clip).play();
+    document.getElementById('lbl').textContent += '  ·  anim: ' + clip.name
+       + '  (' + gltf.animations.map(a=>a.name).join(', ') + ')';
+  }
+}, undefined, (err)=>{ document.getElementById('lbl').textContent = 'ERROR: '+err; });
+
+function tick(){
+  requestAnimationFrame(tick);
+  if (mixer) mixer.update(clock.getDelta());
+  renderer.render(scene, camera);
+}
+tick();
+addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+</script>
