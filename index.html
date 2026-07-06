@@ -48,6 +48,9 @@
   summary{cursor:pointer;font-size:12.5px;color:var(--txt)}
   #hint{position:absolute;bottom:64px;left:50%;transform:translateX(-50%);
     font-size:11px;color:var(--muted);text-align:center;pointer-events:none}
+  #tip{position:absolute;max-width:250px;background:#0c0f14f2;border:1px solid var(--stroke);
+    border-radius:10px;padding:8px 11px;font-size:11.5px;color:#dce6f2;pointer-events:none;
+    display:none;z-index:20;line-height:1.45;box-shadow:0 8px 24px #000a}
   @media (max-width:900px){#left,#right{width:44vw;font-size:11px}}
 </style>
 
@@ -151,7 +154,8 @@
   <a class="dl" href="./cad/rib_template.stl" download>STL costilla</a>
   <a class="dl" href="./" >⤓ Código / repo</a>
 </div>
-<div id="hint">Arrastra para orbitar · rueda para zoom · cambia peso/altura y pulsa «Dejarse caer»</div>
+<div id="hint">Arrastra para orbitar · rueda para zoom · pasa el cursor sobre las flechas · pulsa «Ensamblar»</div>
+<div id="tip"></div>
 
 <script type="importmap">
 { "imports": {
@@ -257,10 +261,11 @@ function buildBowl(){
   for(let i=0;i<8;i++){
     const pts=[];
     for(let j=0;j<=24;j++){ const r=R*j/24; pts.push(new THREE.Vector2(Math.max(r,0.0001), zBowl(r))); }
-    const g=new THREE.LatheGeometry(pts,10, i*Math.PI/4, Math.PI/4);
+    const g=new THREE.LatheGeometry(pts,16, i*Math.PI/4, Math.PI/4);
     const m=new THREE.Mesh(g, MAT.woodD.clone());
     bowlGroup.add(m);
-    reg(m, i, new THREE.Vector3(Math.cos(i*Math.PI/4+.4)*0.9, 1.4+ i*0.02, Math.sin(i*Math.PI/4+.4)*0.9), 'wood');
+    const aa=i*Math.PI/4+Math.PI/8;                 // explosión: pétalos radiales ordenados
+    reg(m, i, new THREE.Vector3(Math.cos(aa)*0.62, 0.10, Math.sin(aa)*0.62), 'wood');
     sectors.push(m);
   }
   // marco octagonal de madera (borde)
@@ -274,7 +279,7 @@ function buildBowl(){
   const rimG=new THREE.ExtrudeGeometry(oct,{depth:0.12,bevelEnabled:false}).rotateX(-Math.PI/2);
   const rim=new THREE.Mesh(rimG, MAT.wood.clone());
   rim.position.y = zBowl(R)-0.12;
-  reg(rim, 8, new THREE.Vector3(0,-1.3,0),'wood');
+  reg(rim, 8, new THREE.Vector3(0,0.5,0),'wood');
   bowlGroup.add(rim);
 }
 buildBowl();
@@ -290,12 +295,12 @@ const struct = new THREE.Group(); scene.add(struct);
 // base de madera (placa) bajo el cuenco
 const baseplate = new THREE.Mesh(new THREE.CylinderGeometry(R+0.16,R+0.16,0.05,8),
   MAT.wood.clone()); baseplate.position.y=-0.05; struct.add(baseplate);
-reg(baseplate,9,new THREE.Vector3(0,-1.6,0),'wood');
+reg(baseplate,9,new THREE.Vector3(0,-0.55,0),'wood');
 // lastre trasero
 const ballast = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.14,0.7),
   new THREE.MeshStandardMaterial({color:0x6b5540,roughness:1}));
 ballast.position.set(0.35,-0.02,0); struct.add(ballast);
-reg(ballast,10,new THREE.Vector3(1.4,0.2,0),'wood');
+reg(ballast,10,new THREE.Vector3(0,-0.85,0),'wood');
 // aro de acero octagonal
 const ringPts=[]; for(let i=0;i<=8;i++){const a=i*Math.PI/4+Math.PI/8;
   ringPts.push(new THREE.Vector2(Math.cos(a)*(R+0.10),Math.sin(a)*(R+0.10)));}
@@ -305,21 +310,21 @@ const ringHole=new THREE.Path(); for(let i=0;i<=8;i++){const a=i*Math.PI/4+Math.
 ringShape.holes.push(ringHole);
 const ring=new THREE.Mesh(new THREE.ExtrudeGeometry(ringShape,{depth:0.04,bevelEnabled:false}).rotateX(-Math.PI/2),
   MAT.steel.clone()); ring.position.y=0.0;
-struct.add(ring); reg(ring,11,new THREE.Vector3(0,1.6,0),'steel');
+struct.add(ring); reg(ring,11,new THREE.Vector3(0,-0.28,0),'steel');
 // poste trasero
 const HUB = new THREE.Vector3(R+0.16, 0.35, 0);
 const post=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.42,0.06),MAT.steel.clone());
 post.position.set(HUB.x,0.21,0); struct.add(post);
-reg(post,12,new THREE.Vector3(1.6,0,0),'steel');
+reg(post,12,new THREE.Vector3(0.95,0,0),'steel');
 
 // ================= BRAZO ARTICULADO (IK) + HIDRÁULICA =================
 const armYaw = new THREE.Group();     // gira 360° sobre el hub
 armYaw.position.copy(HUB); scene.add(armYaw);
-reg(armYaw,13,new THREE.Vector3(1.2,1.2,0),'steel');
+reg(armYaw,13,new THREE.Vector3(1.25,0.75,0),'steel');
 // hub impreso (abraza el rodamiento de bici)
 const hub=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.09,20),MAT.printed.clone());
 armYaw.add(hub); hub.userData.cat='printed';
-const L1=0.6, L2=0.55;
+const L1=0.7, L2=0.7;   // alcance suficiente para la espalda en todo el rango de altura
 const link1=new THREE.Mesh(new THREE.BoxGeometry(L1,0.05,0.05),MAT.steel.clone());
 const link2=new THREE.Mesh(new THREE.BoxGeometry(L2,0.045,0.045),MAT.steel.clone());
 link1.userData.cat='steel'; link2.userData.cat='steel';
@@ -369,13 +374,15 @@ function solveArm(target){
 
 // ================= HUMANOIDE (paramétrico + walk) =================
 const human = new THREE.Group(); scene.add(human);
-reg(human,14,new THREE.Vector3(-1.8,0.4,0),'human');
+reg(human,14,new THREE.Vector3(-1.45,0,0),'human');
 const J = {};
 function limb(len,r1,r2,mat){const m=new THREE.Mesh(
   new THREE.CylinderGeometry(r1,r2,len,12),mat);m.geometry.translate(0,-len/2,0);return m;}
 function buildHuman(){
   J.root=new THREE.Group(); human.add(J.root);
   J.pelvis=new THREE.Group(); J.pelvis.position.y=0.95; J.root.add(J.pelvis);
+  // ancla de la mochila: en la ESPALDA (+X, lado del poste), a la altura de los omóplatos
+  J.back=new THREE.Object3D(); J.back.position.set(0.17,0.42,0); J.pelvis.add(J.back);
   const torso=new THREE.Mesh(new THREE.CapsuleGeometry(0.14,0.36,6,12),MAT.human);
   torso.position.y=0.30; J.pelvis.add(torso); J.torso=torso;
   const head=new THREE.Mesh(new THREE.SphereGeometry(0.11,20,16),MAT.skin);
@@ -388,12 +395,13 @@ function buildHuman(){
   // piernas
   J.legL=new THREE.Group(); J.legL.position.set(-0.09,0,0); J.pelvis.add(J.legL);
   J.legR=new THREE.Group(); J.legR.position.set( 0.09,0,0); J.pelvis.add(J.legR);
+  J.feet=[];
   for(const g of [J.legL,J.legR]){
     const thigh=limb(0.46,0.07,0.055,MAT.human); g.add(thigh);
     const shinG=new THREE.Group(); shinG.position.y=-0.46; g.add(shinG);
     shinG.add(limb(0.44,0.05,0.04,MAT.human));
     const foot=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.05,0.22),MAT.printed.clone());
-    foot.position.set(0,-0.46,0.05); foot.userData.cat='printed'; shinG.add(foot);
+    foot.position.set(0,-0.46,0.05); foot.userData.cat='printed'; shinG.add(foot); J.feet.push(foot);
     // pad PTFE
     const pad=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.012,16),MAT.ptfe.clone());
     pad.position.set(0,-0.49,0.05); pad.userData.cat='ptfe'; shinG.add(pad);
@@ -413,10 +421,39 @@ function mkArrow(color){const a=new THREE.ArrowHelper(new THREE.Vector3(0,1,0),
 arrows.W=mkArrow(0xff4d4d); arrows.N=mkArrow(0x37d67a); arrows.R=mkArrow(0x33c9ff);
 arrows.H=mkArrow(0xffa63d); arrows.S=mkArrow(0xb980ff);
 const FS=0.00055; // escala visual m/N
+const tmpV=new THREE.Vector3();
+// tooltips de fuerza (hover)
+const FORCE_INFO={
+  W:{n:'Peso (W)',  d:'Peso del usuario, W = m·g. Aplicado en el centro de masa, siempre vertical hacia abajo.'},
+  N:{n:'Normal (N)',d:'Reacción del cuenco perpendicular a la superficie. N = W·cosθ (θ = pendiente local).'},
+  R:{n:'Recentrado',d:'Componente de la gravedad tangente al cuenco que devuelve el pie al centro. F = W·sinθ.'},
+  H:{n:'Arnés (horiz.)',d:'Fuerza horizontal que el brazo/arnés reacciona cuando te inclinas. P_h = W·tanφ.'},
+  S:{n:'Gas strut',  d:'Empuje del resorte de gas que soporta la carga vertical al agacharte/caer. ≈ 0.32·W.'}
+};
+const forceVals={W:0,N:0,R:0,H:0,S:0};
+const ray=new THREE.Raycaster(); const raymouse=new THREE.Vector2();
+const hitboxes=[]; const hits={};
+function mkHit(key){const m=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,1,8),
+  new THREE.MeshBasicMaterial({visible:false}));           // invisible pero raycastable
+  m.userData.forceKey=key; scene.add(m); hitboxes.push(m); return m;}
+for(const k of ['W','N','R','H','S']) hits[k]=mkHit(k);
+const tipEl=document.getElementById('tip');
+renderer.domElement.addEventListener('pointermove',ev=>{
+  if(!arrows.W.visible){tipEl.style.display='none';return;}
+  raymouse.x=(ev.clientX/innerWidth)*2-1; raymouse.y=-(ev.clientY/innerHeight)*2+1;
+  ray.setFromCamera(raymouse,camera);
+  const h=ray.intersectObjects(hitboxes,false);
+  if(h.length){ const k=h[0].object.userData.forceKey, info=FORCE_INFO[k];
+    tipEl.innerHTML='<b>'+info.n+'</b> &middot; <span style="color:#18b6a6">'+forceVals[k].toFixed(0)+' N</span><br>'+info.d;
+    tipEl.style.display='block';
+    tipEl.style.left=Math.min(ev.clientX+14, innerWidth-260)+'px';
+    tipEl.style.top=(ev.clientY+14)+'px';
+  } else tipEl.style.display='none';
+});
 
 // ---------- estado / UI ----------
 let weight=70, heightM=1.75, leanDeg=12, turnDeg=0;
-let assembly=1, assemblyTarget=1, walkOn=true, fallAnim=null;
+let assembly=0, assemblyTarget=0, walkOn=true, fallAnim=null;  // arranca DESMONTADO
 const $=id=>document.getElementById(id);
 function bindRange(id,vid,fmt,cb){const e=$(id);e.oninput=()=>{cb(+e.value);$(vid).textContent=fmt(+e.value);};}
 bindRange('sW','vW',v=>v+' kg',v=>weight=v);
@@ -486,12 +523,26 @@ function tick(){
     footY=zBowl(stanceR);
     J.root.position.y = 0;
   }
-  // punto de la mochila (espalda) en el mundo
+  // agachado (crouch) proporcional a la inclinación
+  const crouch=THREE.MathUtils.clamp((lean-6)/24,0,1)*0.6;
+  if(J.pelvis){
+    J.legL.rotation.x+=crouch; J.legR.rotation.x+=crouch;
+    J.legL.userData.shin.rotation.x+=crouch*1.5; J.legR.userData.shin.rotation.x+=crouch*1.5;
+    J.pelvis.position.y-=crouch*0.12;
+  }
+  // contacto de los pies con el cuenco (no atraviesan la superficie)
+  if(J.feet && assembly>0.9){
+    let low=Infinity;
+    for(const ft of J.feet){ ft.getWorldPosition(tmpV);
+      const rr=Math.min(Math.hypot(tmpV.x,tmpV.z),R);
+      const pen=tmpV.y - zBowl(rr); if(pen<low) low=pen; }
+    if(isFinite(low)) human.position.y -= low;      // apoya el pie más bajo sobre la superficie
+  }
+  // punto de la mochila (ESPALDA, lado del poste) en el mundo
   const back=new THREE.Vector3();
-  if(J.torso){ J.torso.getWorldPosition(back);
-    const bdir=new THREE.Vector3(Math.sin(human.rotation.y),0,Math.cos(human.rotation.y)); // +X trasero girado
-    back.add(bdir.multiplyScalar(0.16)); back.y+=0.05; }
-  solveArm(back);
+  if(J.back) J.back.getWorldPosition(back);
+  if(assembly>0.7) solveArm(back);
+  else solveArm(HUB.clone().add(new THREE.Vector3(0.32,0.55,0)));  // brazo plegado en vista explotada
 
   // ---------- fuerzas ----------
   const W=weight*G;
@@ -505,14 +556,15 @@ function tick(){
                                        Math.sin(human.rotation.y)*stanceR);
   // W desde el CoM
   const com=new THREE.Vector3(); if(J.pelvis) J.pelvis.getWorldPosition(com); com.y+=0.1;
-  setArrow(arrows.W, com, new THREE.Vector3(0,-1,0), W*FS);
-  setArrow(arrows.N, stanceWorld, new THREE.Vector3(0,Math.cos(th),0).normalize(), Nn*FS);
+  setArrow(arrows.W, 'W', com, new THREE.Vector3(0,-1,0), W*FS);
+  setArrow(arrows.N, 'N', stanceWorld, new THREE.Vector3(0,Math.cos(th),0).normalize(), Nn*FS);
   const toC=new THREE.Vector3().subVectors(new THREE.Vector3(0,footY,0),stanceWorld).setY(0).normalize();
-  setArrow(arrows.R, stanceWorld, toC, Fr*FS);
-  const backDir=new THREE.Vector3(-Math.cos(human.rotation.y),0,Math.sin(human.rotation.y));
-  setArrow(arrows.H, back.clone(), backDir, Ph*FS);
-  setArrow(arrows.S, strutBody.getWorldPosition(new THREE.Vector3()),
+  setArrow(arrows.R, 'R', stanceWorld, toC, Fr*FS);
+  const backDir=new THREE.Vector3(Math.cos(human.rotation.y),0,-Math.sin(human.rotation.y)); // hacia el poste
+  setArrow(arrows.H, 'H', back.clone(), backDir, Ph*FS);
+  setArrow(arrows.S, 'S', strutBody.getWorldPosition(new THREE.Vector3()),
            new THREE.Vector3(0,1,0), Fs*FS);
+  forceVals.W=W; forceVals.N=Nn; forceVals.R=Fr; forceVals.H=Ph; forceVals.S=Fs;
   // lecturas
   $('rW').textContent=W.toFixed(0)+' N';
   $('rN').textContent=Nn.toFixed(0)+' N';
@@ -524,8 +576,15 @@ function tick(){
   controls.update();
   renderer.render(scene,camera);
 }
-function setArrow(a,pos,dir,len){a.position.copy(pos);a.setDirection(dir.clone().normalize());
-  a.setLength(Math.max(len,0.03),Math.min(0.09,len*0.3+0.03),Math.min(0.05,len*0.15+0.02));}
+function setArrow(a,key,pos,dir,len){
+  const d=dir.clone().normalize(), L=Math.max(len,0.03);
+  a.position.copy(pos); a.setDirection(d);
+  a.setLength(L,Math.min(0.09,len*0.3+0.03),Math.min(0.05,len*0.15+0.02));
+  const hb=hits[key];                         // hitbox invisible para el hover
+  hb.position.copy(pos).add(d.clone().multiplyScalar(L/2));
+  hb.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d);
+  hb.scale.set(1,L,1);
+}
 tick();
 
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
