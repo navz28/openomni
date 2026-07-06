@@ -181,7 +181,7 @@ scene.background = new THREE.Color(0x0e1116);
 scene.fog = new THREE.Fog(0x0e1116, 6, 16);
 
 const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.05, 100);
-const CAM0 = new THREE.Vector3(2.4, 1.7, 2.6);
+const CAM0 = new THREE.Vector3(-2.3, 1.45, 2.5);   // de FRENTE al humanoide (mira hacia +X)
 camera.position.copy(CAM0);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -336,8 +336,8 @@ const strutBody=new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.022,0.22,16),M
 const strutRod =new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.011,0.24,12),MAT.rod.clone());
 strutBody.userData.cat='hydraulic'; strutRod.userData.cat='hydraulic';
 armYaw.add(strutBody,strutRod);
-// placa del chaleco/mochila (impresa) al final del brazo
-const vest=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.26,0.22),MAT.printed.clone());
+// extremo del brazo (pequeña pinza impresa que engancha la placa de la espalda)
+const vest=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.09,0.11),MAT.printed.clone());
 vest.userData.cat='printed'; armYaw.add(vest);
 const strutLabel=label('gas strut','#18b6a6'); strutLabel.visible=false; scene.add(strutLabel);
 const hubLabel=label('hub 360° (rodamiento bici)','#ff6a3d'); hubLabel.visible=false; scene.add(hubLabel);
@@ -374,7 +374,7 @@ function solveArm(target){
 
 // ================= HUMANOIDE (paramétrico + walk) =================
 const human = new THREE.Group(); scene.add(human);
-reg(human,14,new THREE.Vector3(-1.45,0,0),'human');
+reg(human,14,new THREE.Vector3(0,1.0,0),'human');   // explota hacia arriba (queda centrado y de frente)
 const J = {};
 function limb(len,r1,r2,mat){const m=new THREE.Mesh(
   new THREE.CylinderGeometry(r1,r2,len,12),mat);m.geometry.translate(0,-len/2,0);return m;}
@@ -383,6 +383,9 @@ function buildHuman(){
   J.pelvis=new THREE.Group(); J.pelvis.position.y=0.95; J.root.add(J.pelvis);
   // ancla de la mochila: en la ESPALDA (+X, lado del poste), a la altura de los omóplatos
   J.back=new THREE.Object3D(); J.back.position.set(0.17,0.42,0); J.pelvis.add(J.back);
+  // placa de la mochila PEGADA a la espalda (cara plana contra el torso, se mueve con el cuerpo)
+  const backPlate=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.30,0.24),MAT.printed.clone());
+  backPlate.position.set(0.02,0,0); backPlate.userData.cat='printed'; J.back.add(backPlate);
   const torso=new THREE.Mesh(new THREE.CapsuleGeometry(0.14,0.36,6,12),MAT.human);
   torso.position.y=0.30; J.pelvis.add(torso); J.torso=torso;
   const head=new THREE.Mesh(new THREE.SphereGeometry(0.11,20,16),MAT.skin);
