@@ -71,6 +71,16 @@
   .bitem .lk a.print{color:var(--accent);border-color:#ff6a3d66}
   #buyNote{font-size:11px;color:var(--muted);margin-top:16px;line-height:1.55}
   #buyNote code{background:#0c0f14;padding:1px 5px;border-radius:5px;color:#ffd7a8}
+  #scadModal{position:fixed;inset:0;background:#000b;backdrop-filter:blur(4px);display:none;
+    z-index:50;align-items:center;justify-content:center}
+  #scadCard{background:var(--panel2);border:1px solid var(--stroke);border-radius:16px;
+    width:min(1000px,95vw);height:min(86vh,820px);display:flex;flex-direction:column;overflow:hidden}
+  #scadCard select{background:#0c0f14;color:var(--txt);border:1px solid var(--stroke);
+    border-radius:8px;padding:4px 8px;font-size:12px}
+  #scadText{flex:1;margin:0;border:none;resize:none;background:#0b0e13;color:#cfe3d0;
+    font:12px/1.45 ui-monospace,Menlo,Consolas,monospace;padding:12px 16px;outline:none;white-space:pre}
+  #scadBar{display:flex;gap:8px;align-items:center;padding:10px 16px;border-top:1px solid var(--stroke)}
+  #scadStatus{font-size:12px;color:var(--muted);margin-left:6px}
   @media (max-width:900px){#left,#right{width:44vw;font-size:11px}}
 </style>
 
@@ -169,6 +179,7 @@
   <button id="bReset">Reset vista</button>
   <button id="bBuy" class="acc2">📦 Componentes (Chile)</button>
   <a class="dl" href="./paper/openomni.pdf" target="_blank">📄 Paper</a>
+  <button id="bScad" class="acc2">⚙️ Código SCAD</button>
   <a class="dl" href="./cad/bowl.stl" download>STL cuenco</a>
   <a class="dl" href="./cad/overshoe.stl" download>STL calzado</a>
   <a class="dl" href="./cad/sensor_case.stl" download>STL sensor</a>
@@ -181,6 +192,24 @@
 <div id="buyModal"><div id="buyCard">
   <div id="buyHead"><b>🛒 Componentes — dónde comprar en Chile 🇨🇱</b><button id="buyClose">✕</button></div>
   <div id="buyBody"></div>
+</div></div>
+<div id="scadModal"><div id="scadCard">
+  <div id="buyHead">
+    <b>⚙️ Código OpenSCAD — editable y recompilable</b>
+    <span style="flex:1"></span>
+    <select id="scadPick" title="archivo">
+      <option value="cad/openomni.scad">openomni.scad</option>
+      <option value="cad/gas_strut.scad">gas_strut.scad</option>
+    </select>
+    <button id="scadClose">✕</button>
+  </div>
+  <textarea id="scadText" spellcheck="false"></textarea>
+  <div id="scadBar">
+    <button id="scadCompile" class="primary">▶ Recompilar → STL</button>
+    <button id="scadDl">⤓ Descargar .scad</button>
+    <button id="scadCopy">Copiar</button>
+    <span id="scadStatus"></span>
+  </div>
 </div></div>
 
 <script type="importmap">
@@ -613,6 +642,40 @@ $('bBuy').onclick=()=>{ if(!$('buyBody').innerHTML) renderBuy(); $('buyModal').s
 $('buyClose').onclick=()=>$('buyModal').style.display='none';
 $('buyModal').addEventListener('click',e=>{ if(e.target.id==='buyModal') e.target.style.display='none'; });
 if(location.hash.toLowerCase().includes('buy')){ renderBuy(); $('buyModal').style.display='flex'; }
+
+// ---------- Ventana de código OpenSCAD (editable + recompilable con openscad-wasm) ----------
+async function loadScad(){ const f=$('scadPick').value; $('scadStatus').textContent='cargando '+f+'…';
+  try{ $('scadText').value=await (await fetch('./'+f+'?t='+Date.now())).text(); $('scadStatus').textContent=''; }
+  catch(e){ $('scadStatus').textContent='no se pudo cargar '+f; } }
+$('bScad').onclick=()=>{ $('scadModal').style.display='flex'; if(!$('scadText').value) loadScad(); };
+$('scadClose').onclick=()=>$('scadModal').style.display='none';
+$('scadModal').addEventListener('click',e=>{ if(e.target.id==='scadModal') e.target.style.display='none'; });
+$('scadPick').onchange=loadScad;
+$('scadDl').onclick=()=>{ const b=new Blob([$('scadText').value],{type:'text/plain'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=$('scadPick').value.split('/').pop(); a.click(); };
+$('scadCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText($('scadText').value); $('scadStatus').textContent='copiado ✓'; }
+  catch(e){ $('scadStatus').textContent='selecciona y Ctrl+C'; } };
+let _oscad=null;
+$('scadCompile').onclick=async()=>{ const st=$('scadStatus');
+  try{
+    if(!_oscad){ st.textContent='cargando OpenSCAD (WASM, ~10 MB la 1ª vez)…';
+      const mod=await import('https://cdn.jsdelivr.net/npm/openscad-wasm/openscad.js');
+      const factory=mod.default||mod.OpenSCAD||mod;
+      _oscad=await factory({noInitialRun:true, locateFile:p=>'https://cdn.jsdelivr.net/npm/openscad-wasm/'+p}); }
+    st.textContent='compilando… (puede tardar en modelos grandes)';
+    const inst=_oscad;
+    try{ inst.FS.unlink('/in.scad'); }catch(e){}  try{ inst.FS.unlink('/out.stl'); }catch(e){}
+    inst.FS.writeFile('/in.scad', $('scadText').value);
+    const t0=performance.now();
+    inst.callMain(['/in.scad','-o','/out.stl']);
+    const data=inst.FS.readFile('/out.stl');
+    const secs=((performance.now()-t0)/1000).toFixed(1);
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:'model/stl'}));
+    a.download=$('scadPick').value.split('/').pop().replace('.scad','.stl'); a.click();
+    st.textContent='STL generado en '+secs+' s ✓ (descargado)';
+  }catch(e){ st.textContent='error: '+(e.message||e)+' — puedes editar y compilar local'; console.error(e); }
+};
+if(location.hash.toLowerCase().includes('scad')){ $('scadModal').style.display='flex'; loadScad(); }
 function highlight(cat,on){
   scene.traverse(o=>{ if(o.isMesh && o.userData.cat===cat){
     o.material.emissive=new THREE.Color(on? (cat==='hydraulic'?0x0a5a52:0x8a2a12):0x000000);
