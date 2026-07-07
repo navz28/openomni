@@ -46,8 +46,8 @@
   a.dl:hover{border-color:var(--accent2)}
   details{margin:6px 0}
   summary{cursor:pointer;font-size:12.5px;color:var(--txt)}
-  #hint{position:absolute;bottom:64px;left:50%;transform:translateX(-50%);
-    font-size:11px;color:var(--muted);text-align:center;pointer-events:none}
+  #hint{flex-basis:100%;text-align:center;margin-top:10px;
+    font-size:11px;color:var(--muted);pointer-events:none}
   #tip{position:absolute;max-width:250px;background:#0c0f14f2;border:1px solid var(--stroke);
     border-radius:10px;padding:8px 11px;font-size:11.5px;color:#dce6f2;pointer-events:none;
     display:none;z-index:20;line-height:1.45;box-shadow:0 8px 24px #000a}
@@ -168,14 +168,15 @@
   <button id="bFall" class="acc2">Dejarse caer ⤵</button>
   <button id="bReset">Reset vista</button>
   <button id="bBuy" class="acc2">📦 Componentes (Chile)</button>
+  <a class="dl" href="./paper/openomni.pdf" target="_blank">📄 Paper</a>
   <a class="dl" href="./cad/bowl.stl" download>STL cuenco</a>
   <a class="dl" href="./cad/overshoe.stl" download>STL calzado</a>
   <a class="dl" href="./cad/sensor_case.stl" download>STL sensor</a>
   <a class="dl" href="./cad/arm_hub.stl" download>STL hub</a>
   <a class="dl" href="./cad/rib_template.stl" download>STL costilla</a>
   <a class="dl" href="./" >⤓ Código / repo</a>
+  <div id="hint">Arrastra para orbitar · rueda para zoom · pasa el cursor sobre las flechas</div>
 </div>
-<div id="hint">Arrastra para orbitar · rueda para zoom · pasa el cursor sobre las flechas · pulsa «Ensamblar»</div>
 <div id="tip"></div>
 <div id="buyModal"><div id="buyCard">
   <div id="buyHead"><b>🛒 Componentes — dónde comprar en Chile 🇨🇱</b><button id="buyClose">✕</button></div>
@@ -291,8 +292,8 @@ function buildBowl(){
     const g=new THREE.LatheGeometry(pts,16, i*Math.PI/4, Math.PI/4);
     const m=new THREE.Mesh(g, MAT.woodD.clone());
     bowlGroup.add(m);
-    const aa=i*Math.PI/4+Math.PI/8;                 // explosión: gajos abriéndose hacia arriba
-    reg(m, i, new THREE.Vector3(Math.cos(aa)*0.55, 0.45, Math.sin(aa)*0.55), 'wood');
+    const aa=i*Math.PI/4+Math.PI/8;                 // explosión: octágono seccionado simétrico (radial uniforme)
+    reg(m, i, new THREE.Vector3(Math.cos(aa)*0.42, 0.10, Math.sin(aa)*0.42), 'wood');
     sectors.push(m);
   }
   // marco octagonal de madera (borde)
@@ -321,10 +322,19 @@ function rebuildBowl(){
 const struct = new THREE.Group(); scene.add(struct); struct.position.y = DECK;
 // patas (elevan la plataforma; dejan ver el mecanismo de giro debajo)
 const legs = new THREE.Group(); scene.add(legs);
-for(let i=0;i<6;i++){ const a=i*Math.PI/3+Math.PI/6;
-  const leg=new THREE.Mesh(new THREE.BoxGeometry(0.06,DECK,0.06), MAT.wood.clone());
-  leg.position.set(Math.cos(a)*(R+0.18), DECK/2, Math.sin(a)*(R+0.18)); leg.userData.cat='wood';
+const legH = DECK-0.03;
+for(let i=0;i<8;i++){ const a=i*Math.PI/4+Math.PI/8;
+  const leg=new THREE.Mesh(new THREE.BoxGeometry(0.06,legH,0.06), MAT.wood.clone());
+  leg.position.set(Math.cos(a)*(R+0.10), legH/2, Math.sin(a)*(R+0.10)); leg.userData.cat='wood';
   leg.castShadow=true; legs.add(leg);
+}
+// marco perimetral inferior (octágono) que amarra las patas al piso
+{ const fp=[], fh=new THREE.Path();
+  for(let i=0;i<=8;i++){const a=i*Math.PI/4+Math.PI/8; fp.push(new THREE.Vector2(Math.cos(a)*(R+0.15),Math.sin(a)*(R+0.15)));}
+  for(let i=0;i<=8;i++){const a=i*Math.PI/4+Math.PI/8; fh.lineTo(Math.cos(a)*(R+0.05),Math.sin(a)*(R+0.05));}
+  const fs=new THREE.Shape(fp); fs.holes.push(fh);
+  const frame=new THREE.Mesh(new THREE.ExtrudeGeometry(fs,{depth:0.05,bevelEnabled:false}).rotateX(-Math.PI/2), MAT.wood.clone());
+  frame.position.y=0.05; frame.userData.cat='wood'; frame.castShadow=true; legs.add(frame);
 }
 // base de madera (placa) bajo el cuenco
 const baseplate = new THREE.Mesh(new THREE.CylinderGeometry(R+0.16,R+0.16,0.05,8),
@@ -346,7 +356,7 @@ const ring=new THREE.Mesh(new THREE.ExtrudeGeometry(ringShape,{depth:0.04,bevelE
   MAT.steel.clone()); ring.position.y=0.0;
 struct.add(ring); reg(ring,11,new THREE.Vector3(0,-0.28,0),'steel');
 // ---- GIRO: un solo BEARING CENTRAL (fácil y suave) en el hueco bajo la plataforma ----
-const HUB = new THREE.Vector3(R+0.08, DECK+0.35, 0);
+const HUB = new THREE.Vector3(R+0.24, DECK+0.35, 0);   // poste FUERA del cuenco (no lo atraviesa)
 // pedestal FIJO del bearing: del piso al centro, NO gira
 const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.075,DECK-0.03,20), MAT.steel.clone());
 pedestal.position.y=(DECK-0.03)/2; pedestal.userData.cat='steel'; pedestal.castShadow=true; scene.add(pedestal);
@@ -413,11 +423,13 @@ function solveArm(target){
   placeSegment(link2,ex,ey,px,py);
   elbow.position.set(ex,ey,0);
   vest.position.set(px,py,0); vest.rotation.z=0;
-  // strut entre base (0.06,-0.02) y punto al 55% de link1
-  const bx=0.06,by=-0.02, tx=ex*0.6, ty=ey*0.6;
-  placeSegment(strutBody,bx,by,tx,ty);
+  // gas strut = PUENTE del codo: une el eslabón inferior (link1) con el superior (link2)
+  // a un costado (offset Z). Ley de cosenos: Ls² = a² + b² − 2·a·b·cos(θ_codo)
+  const Ax=ex*0.60, Ay=ey*0.60;                         // anclaje A en link1
+  const Bx=ex+(px-ex)*0.42, By=ey+(py-ey)*0.42;         // anclaje B en link2
+  placeSegment(strutBody,Ax,Ay,Bx,By); strutBody.position.z=0.06;
   strutRod.position.copy(strutBody.position); strutRod.rotation.copy(strutBody.rotation);
-  strutLen=Math.hypot(tx-bx,ty-by);
+  strutLen=Math.hypot(Bx-Ax,By-Ay);
   elbowAngleDeg=(Math.PI-a2)*180/Math.PI;
   // etiquetas
   strutBody.getWorldPosition(strutLabel.position); strutLabel.position.y+=0.14;
@@ -515,7 +527,7 @@ renderer.domElement.addEventListener('pointermove',ev=>{
 
 // ---------- estado / UI ----------
 let weight=70, heightM=1.75, leanDeg=12, turnDeg=0;
-let assembly=0, assemblyTarget=0, walkOn=true, fallAnim=null;  // arranca DESMONTADO
+let assembly=1, assemblyTarget=1, walkOn=true, fallAnim=null;  // arranca ENSAMBLADO
 const $=id=>document.getElementById(id);
 function bindRange(id,vid,fmt,cb){const e=$(id);e.oninput=()=>{cb(+e.value);$(vid).textContent=fmt(+e.value);};}
 bindRange('sW','vW',v=>v+' kg',v=>weight=v);
