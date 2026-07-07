@@ -280,7 +280,8 @@ let kBowl = Math.tan(edgeDeg*Math.PI/180)/(2*R);
 const zBowl = r => kBowl*r*r;              // altura (m) sobre el centro
 
 // ================= CUENCO OCTAGONAL (8 módulos de madera) =================
-const bowlGroup = new THREE.Group(); scene.add(bowlGroup);
+const DECK = 0.20;                 // altura de la plataforma sobre el piso (hueco visible para el mecanismo)
+const bowlGroup = new THREE.Group(); scene.add(bowlGroup); bowlGroup.position.y = DECK;
 const sectors = [];
 function buildBowl(){
   // 8 sectores lathe (los "8 módulos" del WoODT)
@@ -317,7 +318,14 @@ function rebuildBowl(){
 }
 
 // ================= BASE / ESTRUCTURA =================
-const struct = new THREE.Group(); scene.add(struct);
+const struct = new THREE.Group(); scene.add(struct); struct.position.y = DECK;
+// patas (elevan la plataforma; dejan ver el mecanismo de giro debajo)
+const legs = new THREE.Group(); scene.add(legs);
+for(let i=0;i<6;i++){ const a=i*Math.PI/3+Math.PI/6;
+  const leg=new THREE.Mesh(new THREE.BoxGeometry(0.06,DECK,0.06), MAT.wood.clone());
+  leg.position.set(Math.cos(a)*(R+0.18), DECK/2, Math.sin(a)*(R+0.18)); leg.userData.cat='wood';
+  leg.castShadow=true; legs.add(leg);
+}
 // base de madera (placa) bajo el cuenco
 const baseplate = new THREE.Mesh(new THREE.CylinderGeometry(R+0.16,R+0.16,0.05,8),
   MAT.wood.clone()); baseplate.position.y=-0.05; struct.add(baseplate);
@@ -337,25 +345,23 @@ ringShape.holes.push(ringHole);
 const ring=new THREE.Mesh(new THREE.ExtrudeGeometry(ringShape,{depth:0.04,bevelEnabled:false}).rotateX(-Math.PI/2),
   MAT.steel.clone()); ring.position.y=0.0;
 struct.add(ring); reg(ring,11,new THREE.Vector3(0,-0.28,0),'steel');
-// carro rotatorio CENTRAL: el brazo gira 360° sobre un bearing bajo la plataforma
-const HUB = new THREE.Vector3(R+0.16, 0.35, 0);
-const carriage = new THREE.Group(); scene.add(carriage);   // gira 360° — turntable perimetral VISIBLE
-// anillo giratorio a ras de piso: rueda sobre el aro fijo = el "bearing" grande y visible
-const turnRing = new THREE.Mesh(new THREE.TorusGeometry(R+0.09, 0.045, 14, 46).rotateX(Math.PI/2), MAT.steel.clone());
-turnRing.position.y=0.055; turnRing.userData.cat='steel'; carriage.add(turnRing);
-// rodillos/ruedas del rodamiento (elementos rodantes, visibles)
-for(let a=0;a<Math.PI*2-0.01;a+=Math.PI/4){
-  const roller=new THREE.Mesh(new THREE.CylinderGeometry(0.032,0.032,0.05,14), MAT.rod.clone());
-  roller.rotation.x=Math.PI/2; roller.rotation.z=a;
-  roller.position.set(Math.cos(a)*(R+0.09),0.03,Math.sin(a)*(R+0.09));
-  roller.userData.cat='steel'; carriage.add(roller);
-}
-// poste trasero sube desde el anillo giratorio (rota con él)
-const post=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.60,0.07),MAT.steel.clone());
-post.position.set(HUB.x,0.28,0); post.userData.cat='steel'; carriage.add(post);
-// cartela que une el poste al anillo
-const gusset=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.06,0.10),MAT.steel.clone());
-gusset.position.set(HUB.x-0.06,0.075,0); gusset.userData.cat='steel'; carriage.add(gusset);
+// ---- GIRO: un solo BEARING CENTRAL (fácil y suave) en el hueco bajo la plataforma ----
+const HUB = new THREE.Vector3(R+0.08, DECK+0.35, 0);
+// pedestal FIJO del bearing: del piso al centro, NO gira
+const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.075,DECK-0.03,20), MAT.steel.clone());
+pedestal.position.y=(DECK-0.03)/2; pedestal.userData.cat='steel'; pedestal.castShadow=true; scene.add(pedestal);
+// housing del rodamiento (rueda de remolque / rodamiento cónico) — la pieza clave del giro
+const brg = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.05,26), MAT.rod.clone());
+brg.position.y=DECK-0.03; brg.userData.cat='steel'; scene.add(brg);
+const brgLabel=label('bearing central (rueda remolque)','#d7dee6'); brgLabel.visible=false; scene.add(brgLabel);
+// carro giratorio: collar + brazo radial (spider) + poste. Gira sobre el bearing central.
+const carriage = new THREE.Group(); scene.add(carriage);
+const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.052,0.052,0.07,20), MAT.steel.clone());
+collar.position.y=DECK-0.02; collar.userData.cat='steel'; carriage.add(collar);
+const spider = new THREE.Mesh(new THREE.BoxGeometry(HUB.x,0.05,0.07), MAT.steel.clone());
+spider.position.set(HUB.x/2, DECK-0.06, 0); spider.userData.cat='steel'; carriage.add(spider);
+const post=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.55,0.07),MAT.steel.clone());
+post.position.set(HUB.x, DECK-0.06+0.27, 0); post.userData.cat='steel'; carriage.add(post);
 
 // ================= BRAZO ARTICULADO (IK) + HIDRÁULICA =================
 const armYaw = new THREE.Group();     // orientación fina del brazo hacia la espalda
@@ -519,7 +525,8 @@ bindRange('sT','vT',v=>v+'°',v=>turnDeg=v);
 bindRange('sB','vB',v=>v+'°',v=>{edgeDeg=v;rebuildBowl();});
 $('cWalk').onchange=e=>walkOn=e.target.checked;
 $('cForces').onchange=e=>{for(const a of Object.values(arrows))a.visible=e.target.checked;};
-$('cLabels').onchange=e=>{strutLabel.visible=hubLabel.visible=e.target.checked;};
+brgLabel.position.set(0.0, DECK+0.02, 0.28);
+$('cLabels').onchange=e=>{strutLabel.visible=hubLabel.visible=brgLabel.visible=e.target.checked;};
 $('cPrinted').onchange=e=>highlight('printed',e.target.checked);
 $('cHyd').onchange=e=>highlight('hydraulic',e.target.checked);
 $('bAssemble').onclick=()=>assemblyTarget=1;
@@ -628,14 +635,14 @@ function tick(){
   if(mixer){ mixer.timeScale = (walkOn && assembly>0.85 && !fallAnim) ? 1.0 : 0.0; mixer.update(dt); }
 
   // contacto de los pies con el cuenco (apoya el pie más bajo sobre la superficie)
-  let stanceR=0.18, footY=zBowl(0.18), stancePos=null;
+  let stanceR=0.18, footY=DECK+zBowl(0.18), stancePos=null;
   if(J.ready && J.feet.length){
     let low=Infinity, lowW=null;
     for(const ft of J.feet){ ft.getWorldPosition(tmpV);
       const rr=Math.min(Math.hypot(tmpV.x,tmpV.z),R);
-      const pen=tmpV.y - (zBowl(rr)+0.06); if(pen<low){ low=pen; lowW=tmpV.clone(); } }
+      const pen=tmpV.y - (DECK+zBowl(rr)+0.06); if(pen<low){ low=pen; lowW=tmpV.clone(); } }
     if(assembly>0.9 && isFinite(low)) human.position.y -= low;
-    if(lowW){ stanceR=Math.min(Math.hypot(lowW.x,lowW.z),R); footY=zBowl(stanceR);
+    if(lowW){ stanceR=Math.min(Math.hypot(lowW.x,lowW.z),R); footY=DECK+zBowl(stanceR);
       stancePos=new THREE.Vector3(lowW.x,footY+0.02,lowW.z); }
   }
 
