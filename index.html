@@ -429,25 +429,26 @@ ringShape.holes.push(ringHole);
 const ring=new THREE.Mesh(new THREE.ExtrudeGeometry(ringShape,{depth:0.04,bevelEnabled:false}).rotateX(-Math.PI/2),
   MAT.steel.clone()); ring.position.y=0.0;
 struct.add(ring); reg(ring,11,new THREE.Vector3(0,-0.28,0),'steel');
-// ---- GIRO estilo OMNI ONE: anillo/riel perimetral; el brazo va en un carro con ruedas ----
-const Rring = R + 0.30;                                 // radio del anillo (FUERA de la plataforma)
-const HUB = new THREE.Vector3(Rring, DECK+0.35, 0);     // poste sobre el carro, fuera del cuenco
-// riel/anillo FIJO a ras de piso, rodea la plataforma (dos aros = canal de rodadura)
-const rail = new THREE.Mesh(new THREE.TorusGeometry(Rring, 0.03, 12, 84).rotateX(Math.PI/2), MAT.steel.clone());
-rail.position.y=0.05; rail.userData.cat='steel'; rail.castShadow=true; scene.add(rail);
-const rail2 = new THREE.Mesh(new THREE.TorusGeometry(Rring-0.09, 0.025, 10, 84).rotateX(Math.PI/2), MAT.steel.clone());
-rail2.position.y=0.03; rail2.userData.cat='steel'; scene.add(rail2);
-const brgLabel=label('anillo/riel de giro (ruedas)','#d7dee6'); brgLabel.visible=false; scene.add(brgLabel);
-// carro giratorio: bogie con RUEDAS que ruedan sobre el riel + poste. Rueda alrededor de la plataforma.
+// ---- GIRO estilo OMNI ONE: ANILLO SÓLIDO giratorio (collar/turntable) que rodea la base ----
+const Rring = R + 0.26;
+const HUB = new THREE.Vector3(Rring, DECK+0.35, 0);
+const brgLabel=label('anillo giratorio (turntable)','#d7dee6'); brgLabel.visible=false; scene.add(brgLabel);
+// disco base FIJO bajo el anillo (aloja el rodamiento tipo lazy-susan; no gira)
+const baseDisc=new THREE.Mesh(new THREE.CylinderGeometry(Rring+0.02,Rring+0.06,0.05,64),
+  new THREE.MeshStandardMaterial({color:0x14171c,roughness:1}));
+baseDisc.position.y=0.025; baseDisc.userData.cat='steel'; baseDisc.receiveShadow=true; scene.add(baseDisc);
+// carro giratorio = anillo sólido (collar) + poste. Gira suave sobre el disco base.
 const carriage = new THREE.Group(); scene.add(carriage);
-const bogie = new THREE.Mesh(new THREE.BoxGeometry(0.24,0.05,0.22), MAT.steel.clone());
-bogie.position.set(Rring-0.045,0.11,0); bogie.userData.cat='steel'; carriage.add(bogie);
-for(const dz of [-0.08,0.08]) for(const dx of [-0.06,0.06]){          // 4 ruedas sobre los aros
-  const wheel=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.03,16), MAT.rod.clone());
-  wheel.rotation.x=Math.PI/2; wheel.position.set(Rring-0.045+dx,0.05,dz); wheel.userData.cat='steel'; carriage.add(wheel);
-}
-const post=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.62,0.07),MAT.steel.clone());
-post.position.set(Rring, 0.11+0.31, 0); post.userData.cat='steel'; carriage.add(post);
+const rin=Rring-0.10, rout=Rring+0.04, rh=0.15;
+const ringProfile=[new THREE.Vector2(rin,0),new THREE.Vector2(rout,0),new THREE.Vector2(rout,rh),
+  new THREE.Vector2(rout-0.02,rh+0.02),new THREE.Vector2(rin,rh+0.02)];
+const collar=new THREE.Mesh(new THREE.LatheGeometry(ringProfile,80),
+  new THREE.MeshStandardMaterial({color:0x23262c,metalness:0.4,roughness:0.5}));
+collar.position.y=0.05; collar.userData.cat='steel'; collar.castShadow=true; carriage.add(collar);
+const pbase=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.09,0.18),MAT.steel.clone());
+pbase.position.set(Rring,0.05+rh+0.02,0); pbase.userData.cat='steel'; carriage.add(pbase);
+const post=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.62,0.08),MAT.steel.clone());
+post.position.set(Rring, 0.05+rh+0.34, 0); post.userData.cat='steel'; carriage.add(post);
 
 // ================= BRAZO ARTICULADO (IK) + HIDRÁULICA =================
 const armYaw = new THREE.Group();     // orientación fina del brazo hacia la espalda
@@ -675,7 +676,10 @@ const COMPONENTS=[
  ]},
 ];
 function renderBuy(){
-  let html='';
+  let html='<div style="margin:6px 0 2px;padding:10px 12px;background:#0c0f14;border:1px solid var(--stroke);border-radius:10px;font-size:12.5px">'+
+    '📊 <b>Planilla de costos — Antofagasta (CLP):</b> total máx. estimado <b style="color:var(--accent2)">≈ $612.000</b> · '+
+    '<a class="print" style="color:var(--accent);border:1px solid #ff6a3d66;border-radius:7px;padding:3px 8px;text-decoration:none;margin:0 3px" href="./docs/costos-antofagasta-clp.xlsx" download>⤓ Excel (.xlsx)</a>'+
+    '<a style="color:var(--accent2);border:1px solid var(--stroke);border-radius:7px;padding:3px 8px;text-decoration:none" href="./docs/costos-antofagasta-clp.csv" download>⤓ CSV</a></div>';
   for(const g of COMPONENTS){ html+='<div class="bgrp"><h4>'+g.g+'</h4>';
     for(const it of g.items){
       const lk=it.links.map(l=>'<a class="'+(l.print?'print':'')+'" target="_blank" rel="noopener" href="'+l.url+'">'+l.label+'</a>').join('');
