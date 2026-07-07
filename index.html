@@ -429,23 +429,25 @@ ringShape.holes.push(ringHole);
 const ring=new THREE.Mesh(new THREE.ExtrudeGeometry(ringShape,{depth:0.04,bevelEnabled:false}).rotateX(-Math.PI/2),
   MAT.steel.clone()); ring.position.y=0.0;
 struct.add(ring); reg(ring,11,new THREE.Vector3(0,-0.28,0),'steel');
-// ---- GIRO: un solo BEARING CENTRAL (fácil y suave) en el hueco bajo la plataforma ----
-const HUB = new THREE.Vector3(R+0.24, DECK+0.35, 0);   // poste FUERA del cuenco (no lo atraviesa)
-// pedestal FIJO del bearing: del piso al centro, NO gira
-const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.075,DECK-0.03,20), MAT.steel.clone());
-pedestal.position.y=(DECK-0.03)/2; pedestal.userData.cat='steel'; pedestal.castShadow=true; scene.add(pedestal);
-// housing del rodamiento (rueda de remolque / rodamiento cónico) — la pieza clave del giro
-const brg = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.05,26), MAT.rod.clone());
-brg.position.y=DECK-0.03; brg.userData.cat='steel'; scene.add(brg);
-const brgLabel=label('bearing central (rueda remolque)','#d7dee6'); brgLabel.visible=false; scene.add(brgLabel);
-// carro giratorio: collar + brazo radial (spider) + poste. Gira sobre el bearing central.
+// ---- GIRO estilo OMNI ONE: anillo/riel perimetral; el brazo va en un carro con ruedas ----
+const Rring = R + 0.30;                                 // radio del anillo (FUERA de la plataforma)
+const HUB = new THREE.Vector3(Rring, DECK+0.35, 0);     // poste sobre el carro, fuera del cuenco
+// riel/anillo FIJO a ras de piso, rodea la plataforma (dos aros = canal de rodadura)
+const rail = new THREE.Mesh(new THREE.TorusGeometry(Rring, 0.03, 12, 84).rotateX(Math.PI/2), MAT.steel.clone());
+rail.position.y=0.05; rail.userData.cat='steel'; rail.castShadow=true; scene.add(rail);
+const rail2 = new THREE.Mesh(new THREE.TorusGeometry(Rring-0.09, 0.025, 10, 84).rotateX(Math.PI/2), MAT.steel.clone());
+rail2.position.y=0.03; rail2.userData.cat='steel'; scene.add(rail2);
+const brgLabel=label('anillo/riel de giro (ruedas)','#d7dee6'); brgLabel.visible=false; scene.add(brgLabel);
+// carro giratorio: bogie con RUEDAS que ruedan sobre el riel + poste. Rueda alrededor de la plataforma.
 const carriage = new THREE.Group(); scene.add(carriage);
-const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.052,0.052,0.07,20), MAT.steel.clone());
-collar.position.y=DECK-0.02; collar.userData.cat='steel'; carriage.add(collar);
-const spider = new THREE.Mesh(new THREE.BoxGeometry(HUB.x,0.05,0.07), MAT.steel.clone());
-spider.position.set(HUB.x/2, DECK-0.06, 0); spider.userData.cat='steel'; carriage.add(spider);
-const post=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.55,0.07),MAT.steel.clone());
-post.position.set(HUB.x, DECK-0.06+0.27, 0); post.userData.cat='steel'; carriage.add(post);
+const bogie = new THREE.Mesh(new THREE.BoxGeometry(0.24,0.05,0.22), MAT.steel.clone());
+bogie.position.set(Rring-0.045,0.11,0); bogie.userData.cat='steel'; carriage.add(bogie);
+for(const dz of [-0.08,0.08]) for(const dx of [-0.06,0.06]){          // 4 ruedas sobre los aros
+  const wheel=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.03,16), MAT.rod.clone());
+  wheel.rotation.x=Math.PI/2; wheel.position.set(Rring-0.045+dx,0.05,dz); wheel.userData.cat='steel'; carriage.add(wheel);
+}
+const post=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.62,0.07),MAT.steel.clone());
+post.position.set(Rring, 0.11+0.31, 0); post.userData.cat='steel'; carriage.add(post);
 
 // ================= BRAZO ARTICULADO (IK) + HIDRÁULICA =================
 const armYaw = new THREE.Group();     // orientación fina del brazo hacia la espalda
@@ -611,7 +613,7 @@ bindRange('sT','vT',v=>v+'°',v=>turnDeg=v);
 bindRange('sB','vB',v=>v+'°',v=>{edgeDeg=v;rebuildBowl();});
 $('cWalk').onchange=e=>walkOn=e.target.checked;
 $('cForces').onchange=e=>{for(const a of Object.values(arrows))a.visible=e.target.checked;};
-brgLabel.position.set(0.0, DECK+0.02, 0.28);
+brgLabel.position.set(0, 0.16, Rring);
 $('cLabels').onchange=e=>{strutLabel.visible=hubLabel.visible=brgLabel.visible=e.target.checked;};
 $('cPrinted').onchange=e=>highlight('printed',e.target.checked);
 $('cHyd').onchange=e=>highlight('hydraulic',e.target.checked);
