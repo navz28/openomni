@@ -17,6 +17,9 @@
 \usepackage[hidelinks]{hyperref}
 \usepackage{caption}
 \captionsetup{font=small}
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily\scriptsize,breaklines=true,columns=fullflexible,
+  keepspaces=true,showstringspaces=false,frame=single,xleftmargin=3pt,aboveskip=4pt,belowskip=2pt}
 
 \title{\textbf{OpenOmni}: dise\~no e ingenier\'ia de una cinta omnidireccional
 pasiva de realidad virtual, imprimible en 3D y de bajo costo}
@@ -255,6 +258,85 @@ reproducibles con materiales de ferreter\'ia e impresi\'on 3D a $\sim$1/8 del co
 puntos cr\'iticos son la fricci\'on del cuenco ($\mu<0.12$), el lastre anti-vuelco y el uso
 de acero (no pl\'astico) en las juntas cargadas. El gemelo digital y los modelos
 param\'etricos (OpenSCAD) hacen el dise\~no auditable y modificable.
+
+\onecolumn
+\section{Ap\'endice: firmware del tracker de pie (extracto)}
+El c\'odigo completo est\'a en \texttt{firmware/foot\_tracker/}. Se muestran el filtro de
+Mahony (fusi\'on de aceler\'ometro + giroscopio a cuaterni\'on) y el bucle principal, que
+integra la aceleraci\'on lineal con \emph{ZUPT} y obtiene la velocidad de deslizamiento
+del pie hacia atr\'as --la se\~nal de ``caminar''-- enviada por ESP-NOW al hub.
+
+\begin{lstlisting}[language=C++]
+void mahonyUpdate(float gx,float gy,float gz,float ax,float ay,float az,float dt){
+    float recipNorm;
+    float halfvx,halfvy,halfvz;
+    float halfex,halfey,halfez;
+
+    if(!(ax==0 && ay==0 && az==0)){
+        recipNorm = 1.0f/sqrtf(ax*ax+ay*ay+az*az); ax*=recipNorm; ay*=recipNorm; az*=recipNorm;
+        // gravedad estimada desde el quaternion
+        halfvx = q1*q3 - q0*q2;
+        halfvy = q0*q1 + q2*q3;
+        halfvz = q0*q0 - 0.5f + q3*q3;
+        // error = producto cruz medido x estimado
+        halfex = (ay*halfvz - az*halfvy);
+        halfey = (az*halfvx - ax*halfvz);
+        halfez = (ax*halfvy - ay*halfvx);
+        if(twoKi>0.0f){
+            integralFBx += twoKi*halfex*dt; integralFBy += twoKi*halfey*dt; integralFBz += twoKi*halfez*dt;
+            gx += integralFBx; gy += integralFBy; gz += integralFBz;
+        }
+        gx += twoKp*halfex; gy += twoKp*halfey; gz += twoKp*halfez;
+    }
+    // integra el rate de giro
+    gx*=0.5f*dt; gy*=0.5f*dt; gz*=0.5f*dt;
+    float qa=q0, qb=q1, qc=q2;
+    q0 += (-qb*gx - qc*gy - q3*gz);
+    q1 += ( qa*gx + qc*gz - q3*gy);
+    q2 += ( qa*gy - qb*gz + q3*gx);
+    q3 += ( qa*gz + qb*gy - qc*gx);
+    recipNorm = 1.0f/sqrtf(q0*q0+q1*q1+q2*q2+q3*q3);
+    q0*=recipNorm; q1*=recipNorm; q2*=recipNorm; q3*=recipNorm;
+}
+
+void loop(){
+    uint32_t now=micros();
+    float dt=(lastMicros==0)?0.005f:(now-lastMicros)*1e-6f; lastMicros=now;
+    if(dt<=0 || dt>0.1f) dt=0.005f;
+
+    float ax,ay,az,gx,gy,gz;
+    imuRead(ax,ay,az,gx,gy,gz);
+    mahonyUpdate(gx,gy,gz,ax,ay,az,dt);
+
+    // aceleracion lineal en el mundo (quita la gravedad)
+    float wx,wy,wz; bodyAccelToWorld(ax,ay,az,wx,wy,wz);
+    wx*=G; wy*=G; wz=(wz-1.0f)*G;               // resta 1g en Z-mundo
+    float amag=sqrtf(wx*wx+wy*wy);
+
+    int fsr=analogRead(PIN_FSR);
+    bool contact = fsr > 400;                    // FSR: contacto con el cuenco
+
+    velX += wx*dt; velY += wy*dt;                // integra velocidad horizontal
+
+    // ZUPT: contacto + poca aceleracion => pie quieto => resetea deriva
+    if(contact && amag < 0.6f){
+        if(millis()-lastZupt > 40){ velX*=0.5f; velY*=0.5f; }
+    } else { lastZupt=millis(); }
+    velX*=0.995f; velY*=0.995f;                  // fuga lenta anti-runaway
+
+    // rumbo del pie y velocidad de deslizamiento HACIA ATRAS = caminar
+    float yaw=yawDeg();
+    float fwdx=cosf(yaw*DEG_TO_RAD), fwdy=sinf(yaw*DEG_TO_RAD);
+    float vForward = velX*fwdx + velY*fwdy;
+    float backSpeed = (vForward < 0) ? -vForward : 0.0f;
+    backSpeed = constrain(backSpeed, 0.0f, 3.5f);
+
+    if(millis()-lastTx >= 10){                   // envia a 100 Hz por ESP-NOW
+        lastTx=millis();
+        sendPacket(yaw, contact?backSpeed:0.0f, contact?1:0);
+    }
+}
+\end{lstlisting}
 
 \begin{thebibliography}{9}
 \small

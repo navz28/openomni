@@ -15,7 +15,7 @@
   .panel{position:absolute;background:var(--panel);backdrop-filter:blur(8px);
     border:1px solid var(--stroke);border-radius:14px;padding:14px 16px;
     box-shadow:0 10px 30px #0008}
-  #left{top:14px;left:14px;width:300px;max-height:calc(100% - 28px);overflow:auto}
+  #left{top:14px;left:14px;width:300px;max-height:calc(100% - 235px);overflow:auto}
   #right{top:14px;right:14px;width:320px;max-height:calc(100% - 28px);overflow:auto}
   #bottom{left:50%;transform:translateX(-50%);bottom:14px;display:flex;gap:8px;
     flex-wrap:wrap;justify-content:center;align-items:center;max-width:calc(100% - 28px)}
@@ -81,6 +81,20 @@
     font:12px/1.45 ui-monospace,Menlo,Consolas,monospace;padding:12px 16px;outline:none;white-space:pre}
   #scadBar{display:flex;gap:8px;align-items:center;padding:10px 16px;border-top:1px solid var(--stroke)}
   #scadStatus{font-size:12px;color:var(--muted);margin-left:6px}
+  #paperMini{position:fixed;left:14px;bottom:14px;width:150px;background:var(--panel);
+    border:1px solid var(--stroke);border-radius:12px;overflow:hidden;cursor:pointer;z-index:30;
+    box-shadow:0 8px 24px #0008;transition:transform .12s,border-color .12s}
+  #paperMini:hover{transform:translateY(-3px) scale(1.02);border-color:var(--accent)}
+  #paperMini img{display:block;width:100%;height:auto;background:#fff}
+  #paperMini .cap{font-size:10.5px;color:var(--txt);padding:6px 8px;text-align:center;
+    background:var(--panel2);border-top:1px solid var(--stroke)}
+  #paperMini .cap b{color:var(--accent)}
+  #paperFull{position:fixed;inset:0;background:#0e1116;display:none;z-index:70;flex-direction:column}
+  #paperFullBar{display:flex;align-items:center;gap:10px;padding:10px 16px;
+    border-bottom:1px solid var(--stroke);background:var(--panel2);font-size:14px}
+  #paperFullBar button{background:var(--accent);color:#160b06;border:none;border-radius:9px;
+    padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
+  #paperFrame{flex:1;width:100%;border:none;background:#525659}
   @media (max-width:900px){#left,#right{width:44vw;font-size:11px}}
 </style>
 
@@ -178,7 +192,6 @@
   <button id="bFall" class="acc2">Dejarse caer ⤵</button>
   <button id="bReset">Reset vista</button>
   <button id="bBuy" class="acc2">📦 Componentes (Chile)</button>
-  <a class="dl" href="./paper/openomni.pdf" target="_blank">📄 Paper</a>
   <button id="bScad" class="acc2">⚙️ Código SCAD</button>
   <a class="dl" href="./cad/bowl.stl" download>STL cuenco</a>
   <a class="dl" href="./cad/overshoe.stl" download>STL calzado</a>
@@ -211,6 +224,20 @@
     <span id="scadStatus"></span>
   </div>
 </div></div>
+
+<div id="paperMini" title="Abrir el paper">
+  <img src="./paper/thumb.png" alt="Paper">
+  <div class="cap"><b>📄 Paper</b> · click para abrir</div>
+</div>
+<div id="paperFull">
+  <div id="paperFullBar">
+    <b>📄 OpenOmni — Paper</b><span style="opacity:.7;font-size:12px">Nicolás Álvarez</span>
+    <span style="flex:1"></span>
+    <a class="dl" href="./paper/openomni.pdf" target="_blank">Abrir en pestaña ↗</a>
+    <button id="paperClose">✕ Minimizar</button>
+  </div>
+  <iframe id="paperFrame" title="Paper" src=""></iframe>
+</div>
 
 <script type="importmap">
 { "imports": {
@@ -676,6 +703,14 @@ $('scadCompile').onclick=async()=>{ const st=$('scadStatus');
   }catch(e){ st.textContent='error: '+(e.message||e)+' — puedes editar y compilar local'; console.error(e); }
 };
 if(location.hash.toLowerCase().includes('scad')){ $('scadModal').style.display='flex'; loadScad(); }
+
+// ---------- Paper: miniatura -> visor embebido a pantalla completa ----------
+function openPaper(){ const f=$('paperFrame');
+  if(!f.getAttribute('src')) f.src='./paper/openomni.pdf#view=FitH&toolbar=1';
+  $('paperFull').style.display='flex'; }
+$('paperMini').onclick=openPaper;
+$('paperClose').onclick=()=>{ $('paperFull').style.display='none'; };
+if(location.hash.toLowerCase().includes('paper')){ openPaper(); }
 function highlight(cat,on){
   scene.traverse(o=>{ if(o.isMesh && o.userData.cat===cat){
     o.material.emissive=new THREE.Color(on? (cat==='hydraulic'?0x0a5a52:0x8a2a12):0x000000);
