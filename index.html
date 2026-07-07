@@ -265,8 +265,8 @@ function buildBowl(){
     const g=new THREE.LatheGeometry(pts,16, i*Math.PI/4, Math.PI/4);
     const m=new THREE.Mesh(g, MAT.woodD.clone());
     bowlGroup.add(m);
-    const aa=i*Math.PI/4+Math.PI/8;                 // explosión: pétalos radiales ordenados
-    reg(m, i, new THREE.Vector3(Math.cos(aa)*0.62, 0.10, Math.sin(aa)*0.62), 'wood');
+    const aa=i*Math.PI/4+Math.PI/8;                 // explosión: gajos abriéndose hacia arriba
+    reg(m, i, new THREE.Vector3(Math.cos(aa)*0.55, 0.45, Math.sin(aa)*0.55), 'wood');
     sectors.push(m);
   }
   // marco octagonal de madera (borde)
@@ -280,7 +280,7 @@ function buildBowl(){
   const rimG=new THREE.ExtrudeGeometry(oct,{depth:0.12,bevelEnabled:false}).rotateX(-Math.PI/2);
   const rim=new THREE.Mesh(rimG, MAT.wood.clone());
   rim.position.y = zBowl(R)-0.12;
-  reg(rim, 8, new THREE.Vector3(0,0.5,0),'wood');
+  reg(rim, 8, new THREE.Vector3(0,0.95,0),'wood');
   bowlGroup.add(rim);
 }
 buildBowl();
@@ -312,16 +312,24 @@ ringShape.holes.push(ringHole);
 const ring=new THREE.Mesh(new THREE.ExtrudeGeometry(ringShape,{depth:0.04,bevelEnabled:false}).rotateX(-Math.PI/2),
   MAT.steel.clone()); ring.position.y=0.0;
 struct.add(ring); reg(ring,11,new THREE.Vector3(0,-0.28,0),'steel');
-// poste trasero
+// carro rotatorio CENTRAL: el brazo gira 360° sobre un bearing bajo la plataforma
 const HUB = new THREE.Vector3(R+0.16, 0.35, 0);
-const post=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.42,0.06),MAT.steel.clone());
-post.position.set(HUB.x,0.21,0); struct.add(post);
-reg(post,12,new THREE.Vector3(0.95,0,0),'steel');
+const carriage = new THREE.Group(); scene.add(carriage);      // eje vertical en el CENTRO
+// bearing central (slewing ring) bajo el cuenco
+const bearing = new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.06,28), MAT.steel.clone());
+bearing.position.y=-0.11; bearing.userData.cat='steel'; carriage.add(bearing);
+const bearingIn = new THREE.Mesh(new THREE.CylinderGeometry(0.105,0.105,0.085,24), MAT.hyd.clone());
+bearingIn.position.y=-0.11; bearingIn.userData.cat='hydraulic'; carriage.add(bearingIn);
+// brazo radial bajo la plataforma: del centro al poste trasero
+const radial = new THREE.Mesh(new THREE.BoxGeometry(HUB.x,0.05,0.08), MAT.steel.clone());
+radial.position.set(HUB.x/2,-0.09,0); radial.userData.cat='steel'; carriage.add(radial);
+// poste trasero (sube desde el brazo radial; rota con el carro)
+const post=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.46,0.06),MAT.steel.clone());
+post.position.set(HUB.x,0.12,0); post.userData.cat='steel'; carriage.add(post);
 
 // ================= BRAZO ARTICULADO (IK) + HIDRÁULICA =================
-const armYaw = new THREE.Group();     // gira 360° sobre el hub
-armYaw.position.copy(HUB); scene.add(armYaw);
-reg(armYaw,13,new THREE.Vector3(1.25,0.75,0),'steel');
+const armYaw = new THREE.Group();     // orientación fina del brazo hacia la espalda
+armYaw.position.copy(HUB); carriage.add(armYaw);
 // hub impreso (abraza el rodamiento de bici)
 const hub=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.09,20),MAT.printed.clone());
 armYaw.add(hub); hub.userData.cat='printed';
@@ -342,6 +350,12 @@ const vest=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.09,0.11),MAT.printed.clon
 vest.userData.cat='printed'; armYaw.add(vest);
 const strutLabel=label('gas strut','#18b6a6'); strutLabel.visible=false; scene.add(strutLabel);
 const hubLabel=label('hub 360° (rodamiento bici)','#ff6a3d'); hubLabel.visible=false; scene.add(hubLabel);
+// registra el carro completo (brazo+poste+bearing) como pieza explotable, sin sobreescribir categorías
+carriage.userData.assembled=carriage.position.clone();
+carriage.userData.explode=new THREE.Vector3(1.4,0.7,0);
+carriage.userData.order=12; carriage.userData.cat='steel';
+parts.push(carriage);
+carriage.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } });
 
 function placeSegment(mesh, ax,ay, bx,by){ // ubica un box (largo en X local) entre 2 puntos del plano
   const mx=(ax+bx)/2, my=(ay+by)/2, ang=Math.atan2(by-ay,bx-ax);
@@ -349,9 +363,10 @@ function placeSegment(mesh, ax,ay, bx,by){ // ubica un box (largo en X local) en
 }
 let elbowAngleDeg=0, strutLen=0.22;
 function solveArm(target){
-  const d=target.clone().sub(HUB);
+  const pivot=new THREE.Vector3(); armYaw.getWorldPosition(pivot);
+  const d=target.clone().sub(pivot);
   const horiz=Math.hypot(d.x,d.z);
-  armYaw.rotation.y = -Math.atan2(d.z,d.x);          // apunta al objetivo
+  armYaw.rotation.y = -Math.atan2(d.z,d.x) - carriage.rotation.y;  // yaw local (resta la rotación del carro)
   const px=horiz, py=d.y;                              // plano local (x=horiz, y=vert)
   let D=Math.min(Math.hypot(px,py),(L1+L2)*0.999);
   const c2=THREE.MathUtils.clamp((D*D-L1*L1-L2*L2)/(2*L1*L2),-1,1);
@@ -375,7 +390,7 @@ function solveArm(target){
 
 // ================= HUMANOIDE (Xbot GLB rigged, con animación de caminar) =================
 const human = new THREE.Group(); scene.add(human);
-reg(human,14,new THREE.Vector3(0,1.0,0),'human');       // explota hacia arriba
+reg(human,14,new THREE.Vector3(0,1.35,0),'human');      // la persona sube (no tapa la cámara)
 const tilt = new THREE.Group(); human.add(tilt);         // inclinación / dejarse caer (eje Z local)
 const modelWrap = new THREE.Group(); tilt.add(modelWrap);
 modelWrap.rotation.y = -Math.PI/2;                       // Xbot pasa a mirar -X (espalda = +X, lado del poste)
@@ -388,10 +403,14 @@ const backPlate = new THREE.Mesh(new THREE.BoxGeometry(0.03,0.30,0.24), MAT.prin
 backPlate.position.set(0.10,0,0); backPlate.userData.cat='printed';
 backHolder.add(backPlate);
 
-const XBOT='https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb';
-new GLTFLoader().load(XBOT, (gltf)=>{
+const CDN_XBOT='https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb';
+const _modelParam=new URLSearchParams(location.search).get('model');
+const _loader=new GLTFLoader();
+function onModel(gltf){
   const m=gltf.scene;
-  m.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.frustumCulled=false; } });
+  // maniquí azul tipo Mixamo (reemplazo el material; MeshStandardMaterial soporta skinning solo)
+  m.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.frustumCulled=false;
+    o.material = new THREE.MeshStandardMaterial({color:0x2f6fb0, roughness:0.5, metalness:0.15}); } });
   modelWrap.add(m);
   // altura fiable por extensión del esqueleto (el bbox de un skinned mesh no es de fiar)
   const v=new THREE.Vector3(); let ymin=Infinity, ymax=-Infinity;
@@ -415,7 +434,10 @@ new GLTFLoader().load(XBOT, (gltf)=>{
           || gltf.animations.find(a=>/run/i.test(a.name)) || gltf.animations[0];
   if(clip) mixer.clipAction(clip).play();
   J.ready=true;
-}, undefined, e=>console.warn('Xbot load error', e));
+}
+// 1) ?model=<url>  ·  2) tu descarga local (assets/character.glb, ej. Y Bot de Mixamo)  ·  3) Xbot del CDN
+if(_modelParam) _loader.load(_modelParam, onModel, undefined, ()=>_loader.load(CDN_XBOT,onModel));
+else _loader.load('./assets/character.glb', onModel, undefined, ()=>_loader.load(CDN_XBOT,onModel));
 
 // ---------- flechas de fuerza ----------
 const G=9.80665;
@@ -478,6 +500,9 @@ $('bFall').onclick=()=>{fallAnim={t:0};};
 (function(){ const h=location.hash.toLowerCase();
   if(h.includes('go')||h.includes('assembled')||h.includes('fall')) assemblyTarget=1;
   if(h.includes('fall')) setTimeout(()=>{ fallAnim={t:0}; },4200);
+  const q=new URLSearchParams(location.search);
+  if(q.has('turn')){ turnDeg=+q.get('turn'); const e=$('sT'); if(e)e.value=turnDeg; $('vT').textContent=turnDeg+'°'; }
+  if(q.has('lean')){ leanDeg=+q.get('lean'); const e=$('sL'); if(e)e.value=leanDeg; $('vL').textContent=leanDeg+'°'; }
 })();
 function highlight(cat,on){
   scene.traverse(o=>{ if(o.isMesh && o.userData.cat===cat){
@@ -508,6 +533,7 @@ function tick(){
   // humanoide (Xbot): escala por altura, giro (yaw), inclinación (tilt), animación de caminar
   human.scale.setScalar(heightM/1.75);
   human.rotation.y = turnDeg*Math.PI/180;
+  carriage.rotation.y = human.rotation.y;                   // el brazo gira con la persona (bearing central)
   tilt.rotation.z = lean*Math.PI/180 * 0.9;                 // inclinarse / dejarse caer
   if(mixer){ mixer.timeScale = (walkOn && assembly>0.85 && !fallAnim) ? 1.0 : 0.0; mixer.update(dt); }
 
