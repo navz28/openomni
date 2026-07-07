@@ -51,6 +51,26 @@
   #tip{position:absolute;max-width:250px;background:#0c0f14f2;border:1px solid var(--stroke);
     border-radius:10px;padding:8px 11px;font-size:11.5px;color:#dce6f2;pointer-events:none;
     display:none;z-index:20;line-height:1.45;box-shadow:0 8px 24px #000a}
+  #buyModal{position:fixed;inset:0;background:#000b;backdrop-filter:blur(4px);display:none;
+    z-index:50;align-items:center;justify-content:center}
+  #buyCard{background:var(--panel2);border:1px solid var(--stroke);border-radius:16px;
+    width:min(940px,94vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+  #buyHead{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;
+    border-bottom:1px solid var(--stroke);font-size:15px}
+  #buyHead button{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer}
+  #buyBody{overflow:auto;padding:4px 18px 20px}
+  .bgrp h4{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);
+    margin:16px 0 4px;border-bottom:1px solid var(--stroke);padding-bottom:5px}
+  .bitem{display:grid;grid-template-columns:1fr auto;gap:2px 14px;padding:8px 0;border-bottom:1px solid #ffffff12}
+  .bitem .nm{font-size:13px;font-weight:600}
+  .bitem .sp{font-size:11.5px;color:var(--muted);grid-column:1}
+  .bitem .lk{display:flex;gap:6px;flex-wrap:wrap;align-items:center;grid-row:1/3;grid-column:2;justify-content:flex-end}
+  .bitem .lk a{font-size:11px;color:var(--accent2);border:1px solid var(--stroke);border-radius:7px;
+    padding:3px 8px;text-decoration:none;white-space:nowrap}
+  .bitem .lk a:hover{border-color:var(--accent2)}
+  .bitem .lk a.print{color:var(--accent);border-color:#ff6a3d66}
+  #buyNote{font-size:11px;color:var(--muted);margin-top:16px;line-height:1.55}
+  #buyNote code{background:#0c0f14;padding:1px 5px;border-radius:5px;color:#ffd7a8}
   @media (max-width:900px){#left,#right{width:44vw;font-size:11px}}
 </style>
 
@@ -147,6 +167,7 @@
   <button id="bExplode">Explotar</button>
   <button id="bFall" class="acc2">Dejarse caer ⤵</button>
   <button id="bReset">Reset vista</button>
+  <button id="bBuy" class="acc2">📦 Componentes (Chile)</button>
   <a class="dl" href="./cad/bowl.stl" download>STL cuenco</a>
   <a class="dl" href="./cad/overshoe.stl" download>STL calzado</a>
   <a class="dl" href="./cad/sensor_case.stl" download>STL sensor</a>
@@ -156,6 +177,10 @@
 </div>
 <div id="hint">Arrastra para orbitar · rueda para zoom · pasa el cursor sobre las flechas · pulsa «Ensamblar»</div>
 <div id="tip"></div>
+<div id="buyModal"><div id="buyCard">
+  <div id="buyHead"><b>🛒 Componentes — dónde comprar en Chile 🇨🇱</b><button id="buyClose">✕</button></div>
+  <div id="buyBody"></div>
+</div></div>
 
 <script type="importmap">
 { "imports": {
@@ -314,18 +339,23 @@ const ring=new THREE.Mesh(new THREE.ExtrudeGeometry(ringShape,{depth:0.04,bevelE
 struct.add(ring); reg(ring,11,new THREE.Vector3(0,-0.28,0),'steel');
 // carro rotatorio CENTRAL: el brazo gira 360° sobre un bearing bajo la plataforma
 const HUB = new THREE.Vector3(R+0.16, 0.35, 0);
-const carriage = new THREE.Group(); scene.add(carriage);      // eje vertical en el CENTRO
-// bearing central (slewing ring) bajo el cuenco
-const bearing = new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.06,28), MAT.steel.clone());
-bearing.position.y=-0.11; bearing.userData.cat='steel'; carriage.add(bearing);
-const bearingIn = new THREE.Mesh(new THREE.CylinderGeometry(0.105,0.105,0.085,24), MAT.hyd.clone());
-bearingIn.position.y=-0.11; bearingIn.userData.cat='hydraulic'; carriage.add(bearingIn);
-// brazo radial bajo la plataforma: del centro al poste trasero
-const radial = new THREE.Mesh(new THREE.BoxGeometry(HUB.x,0.05,0.08), MAT.steel.clone());
-radial.position.set(HUB.x/2,-0.09,0); radial.userData.cat='steel'; carriage.add(radial);
-// poste trasero (sube desde el brazo radial; rota con el carro)
-const post=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.46,0.06),MAT.steel.clone());
-post.position.set(HUB.x,0.12,0); post.userData.cat='steel'; carriage.add(post);
+const carriage = new THREE.Group(); scene.add(carriage);   // gira 360° — turntable perimetral VISIBLE
+// anillo giratorio a ras de piso: rueda sobre el aro fijo = el "bearing" grande y visible
+const turnRing = new THREE.Mesh(new THREE.TorusGeometry(R+0.09, 0.045, 14, 46).rotateX(Math.PI/2), MAT.steel.clone());
+turnRing.position.y=0.055; turnRing.userData.cat='steel'; carriage.add(turnRing);
+// rodillos/ruedas del rodamiento (elementos rodantes, visibles)
+for(let a=0;a<Math.PI*2-0.01;a+=Math.PI/4){
+  const roller=new THREE.Mesh(new THREE.CylinderGeometry(0.032,0.032,0.05,14), MAT.rod.clone());
+  roller.rotation.x=Math.PI/2; roller.rotation.z=a;
+  roller.position.set(Math.cos(a)*(R+0.09),0.03,Math.sin(a)*(R+0.09));
+  roller.userData.cat='steel'; carriage.add(roller);
+}
+// poste trasero sube desde el anillo giratorio (rota con él)
+const post=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.60,0.07),MAT.steel.clone());
+post.position.set(HUB.x,0.28,0); post.userData.cat='steel'; carriage.add(post);
+// cartela que une el poste al anillo
+const gusset=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.06,0.10),MAT.steel.clone());
+gusset.position.set(HUB.x-0.06,0.075,0); gusset.userData.cat='steel'; carriage.add(gusset);
 
 // ================= BRAZO ARTICULADO (IK) + HIDRÁULICA =================
 const armYaw = new THREE.Group();     // orientación fina del brazo hacia la espalda
@@ -504,6 +534,66 @@ $('bFall').onclick=()=>{fallAnim={t:0};};
   if(q.has('turn')){ turnDeg=+q.get('turn'); const e=$('sT'); if(e)e.value=turnDeg; $('vT').textContent=turnDeg+'°'; }
   if(q.has('lean')){ leanDeg=+q.get('lean'); const e=$('sL'); if(e)e.value=leanDeg; $('vL').textContent=leanDeg+'°'; }
 })();
+
+// ---------- Componentes / dónde comprar (Chile) ----------
+const ML=q=>({label:'MercadoLibre',url:'https://listado.mercadolibre.cl/'+q.replace(/ /g,'-')});
+const SO=q=>({label:'Sodimac',url:'https://www.sodimac.cl/sodimac-cl/search?Ntt='+encodeURIComponent(q)});
+const AE=q=>({label:'AliExpress',url:'https://es.aliexpress.com/w/wall/'+q.replace(/ /g,'-')+'.html'});
+const P3=f=>({label:'Imprimir 3D',url:'./cad/'+(f||''),print:true});
+const COMPONENTS=[
+ {g:'Cuenco y estructura (madera)',items:[
+   {n:'Terciado estructural 18 mm',s:'Base, gajos y deck del octágono',links:[SO('terciado estructural 18mm'),ML('terciado estructural 18mm')]},
+   {n:'Pino 2x4 (radiales) + 2x12 (centro)',s:'8 vigas radiales tipo rayos + bloque central',links:[SO('pino dimensionado 2x4'),ML('pino 2x4')]},
+   {n:'Tornillos estructurales 8x80 mm',s:'Unión radiales↔centro (juntas críticas)',links:[SO('tornillo estructural'),ML('tirafondo estructural')]},
+   {n:'Tornillos madera 4x40 mm',s:'Fijar el deck a los radiales',links:[SO('tornillo madera 4x40'),ML('tornillo madera 4x40')]},
+   {n:'Adhesivo para madera D3',s:'Refuerza cada junta junto al tornillo',links:[SO('adhesivo maderas'),ML('cola carpintero d3')]},
+   {n:'Lámina HDPE / melamina lisa',s:'Cara deslizante del cuenco',links:[ML('lamina hdpe'),SO('melamina blanca 18mm')]},
+   {n:'Lubricante de silicona spray',s:'Baja la fricción (μ) del cuenco',links:[SO('lubricante silicona spray'),ML('silicona spray lubricante')]},
+ ]},
+ {g:'Giro del brazo (bearing) + fierros',items:[
+   {n:'Rodamiento plato giratorio (turntable) Ø≥300',s:'Anillo giratorio del brazo, visible',links:[ML('rodamiento plato giratorio 12 pulgadas'),AE('lazy susan bearing 300mm')]},
+   {n:'Rodamiento de rueda de remolque (cónico)',s:'Alternativa robusta para el eje del giro',links:[ML('rodamiento rueda remolque'),ML('maza remolque rodamiento')]},
+   {n:'Ruedas/rodillos industriales',s:'Elementos rodantes del anillo',links:[SO('rueda giratoria industrial'),ML('rueda industrial 3 pulgadas')]},
+   {n:'Tubo cuadrado acero 40x40x3 mm',s:'Eslabón inferior del brazo (M=610 N·m)',links:[ML('tubo cuadrado 40x40x3'),ML('perfil cuadrado 40x40')]},
+   {n:'Tubo cuadrado acero 50x50x3 mm',s:'Poste trasero',links:[ML('tubo cuadrado 50x50x3')]},
+   {n:'Rodamientos 6008 / 6001 (juntas)',s:'Bisagras del brazo',links:[ML('rodamiento 6008'),AE('6008 bearing')]},
+   {n:'Pernos M10/M12 grado 8.8 + tuercas',s:'Ejes del brazo (en doble corte)',links:[SO('perno hexagonal m12'),ML('perno grado 8.8 m12')]},
+   {n:'Cierre rápido (QR) de bicicleta',s:'Bloqueo tipo leva del brazo',links:[ML('quick release bicicleta'),AE('bike quick release skewer')]},
+ ]},
+ {g:'Hidráulica (resorte de gas)',items:[
+   {n:'Resorte a gas 300–400 N, carrera ≥120 mm',s:'Sostiene ~0.3·peso al agacharse/caer',links:[ML('resorte a gas 400n'),AE('gas spring 400n 150mm')]},
+   {n:'Cilindro de silla de oficina (alternativa)',s:'Muelle de gas regulable y barato',links:[ML('piston silla oficina'),ML('cilindro gas silla')]},
+   {n:'Terminales de rótula / clevis M8',s:'Montaje articulado de los extremos',links:[ML('terminal rotula m8'),AE('gas spring ball stud m8')]},
+ ]},
+ {g:'Arnés / calzado',items:[
+   {n:'Cinturón lumbar / arnés acolchado',s:'Interfaz cuerpo↔brazo',links:[SO('cinturon lumbar'),ML('arnes escalada')]},
+   {n:'Chasis del calzado (overshoe)',s:'Imprimir en PETG',links:[P3('overshoe.stl')]},
+   {n:'Deslizadores PTFE/UHMW (muebles)',s:'Almohadilla de baja fricción',links:[ML('deslizador teflon muebles'),AE('ptfe furniture slider')]},
+   {n:'Filamento PETG 1 kg',s:'Piezas impresas',links:[ML('filamento petg'),AE('petg filament 1kg')]},
+ ]},
+ {g:'Electrónica (sensores + hub)',items:[
+   {n:'ESP32-C3 (x2 pies)',s:'MCU del tracker de pie',links:[AE('esp32 c3 supermini'),ML('esp32 c3')]},
+   {n:'IMU MPU-9250 / ICM-20948 (x2)',s:'Accel + giro + magnetómetro',links:[AE('mpu9250'),ML('mpu9250')]},
+   {n:'FSR sensor de fuerza (x2)',s:'Detecta la pisada en el talón',links:[AE('force sensitive resistor'),ML('sensor fsr')]},
+   {n:'LiPo 500–1000 mAh + TP4056',s:'Batería y cargador',links:[AE('lipo 3.7v 500mah'),ML('tp4056')]},
+   {n:'ESP32-S3 (hub USB)',s:'Receptor = mando USB',links:[AE('esp32 s3'),ML('esp32 s3')]},
+ ]},
+];
+function renderBuy(){
+  let html='';
+  for(const g of COMPONENTS){ html+='<div class="bgrp"><h4>'+g.g+'</h4>';
+    for(const it of g.items){
+      const lk=it.links.map(l=>'<a class="'+(l.print?'print':'')+'" target="_blank" rel="noopener" href="'+l.url+'">'+l.label+'</a>').join('');
+      html+='<div class="bitem"><div class="nm">'+it.n+'</div><div class="sp">'+it.s+'</div><div class="lk">'+lk+'</div></div>';
+    } html+='</div>';
+  }
+  html+='<div id="buyNote">Los enlaces son <b>búsquedas</b> en cada tienda (no productos fijos), para que encuentres stock en Antofagasta o en todo Chile — precios y disponibilidad varían. Para el <b>bearing</b> y los <b>fierros</b>, tu ferretería local suele ganarle al online. Las piezas «Imprimir 3D» salen de los STL en <code>/cad</code>. ⚠️ Los soportes impresos son solo <b>abrazadera/locator</b>: quien aguanta la fuerza es el <b>perno de acero</b> que atraviesa el tubo, nunca el plástico solo.</div>';
+  $('buyBody').innerHTML=html;
+}
+$('bBuy').onclick=()=>{ if(!$('buyBody').innerHTML) renderBuy(); $('buyModal').style.display='flex'; };
+$('buyClose').onclick=()=>$('buyModal').style.display='none';
+$('buyModal').addEventListener('click',e=>{ if(e.target.id==='buyModal') e.target.style.display='none'; });
+if(location.hash.toLowerCase().includes('buy')){ renderBuy(); $('buyModal').style.display='flex'; }
 function highlight(cat,on){
   scene.traverse(o=>{ if(o.isMesh && o.userData.cat===cat){
     o.material.emissive=new THREE.Color(on? (cat==='hydraulic'?0x0a5a52:0x8a2a12):0x000000);
