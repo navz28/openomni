@@ -212,8 +212,11 @@
     así <b>rota suave y no se rompe ni se cae</b>. Los eslabones son <b>tubo de fierro
     cuadrado</b> sujetos por <b>clamps partidos</b> (línea de partición + 2 pernos de
     apriete). La <b>muñeca</b> es una <b>rótula</b> (bola de acero en copa plástica)
-    para seguir la espalda en 3D sin trabarse. El resorte de gas monta con
-    <b>terminales de rótula</b> en cada extremo.
+    para seguir la espalda en 3D sin trabarse. El <b>resorte de gas</b> monta con
+    <b>terminales de rótula</b> en cada extremo, y cada anclaje al brazo es un
+    <b>perno de acero pasante</b> a través del tubo (doble cortante): el saddle impreso
+    sólo apoya y reparte — <b>quien aguanta el empuje del gas es el acero, no el
+    plástico</b>. Activá «Etiquetas de piezas» para ver los anclajes rotulados.
   </p></details>
   <details><summary>Física del resorte de gas (muelle neumático)</summary>
   <p class="phys">
@@ -401,14 +404,16 @@ function reg(obj, order, explode, cat){
   return obj;
 }
 function label(text, color){
-  const c=document.createElement('canvas'); c.width=256;c.height=64;
-  const x=c.getContext('2d');
-  x.fillStyle='rgba(12,15,20,.82)'; roundRect(x,0,0,256,64,14); x.fill();
+  const c=document.createElement('canvas'); let x=c.getContext('2d');
+  x.font='bold 30px system-ui';
+  const w=Math.max(96, Math.ceil(x.measureText(text).width)+28);   // ancho según el texto
+  c.width=w; c.height=64; x=c.getContext('2d');                    // (redimensionar resetea el contexto)
+  x.fillStyle='rgba(12,15,20,.82)'; roundRect(x,0,0,w,64,14); x.fill();
   x.font='bold 30px system-ui'; x.fillStyle=color||'#e7edf5';
-  x.textAlign='center'; x.textBaseline='middle'; x.fillText(text,128,34);
+  x.textAlign='center'; x.textBaseline='middle'; x.fillText(text,w/2,34);
   const t=new THREE.CanvasTexture(c);
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:false,transparent:true}));
-  s.scale.set(0.5,0.125,1); return s;
+  const h=0.115; s.scale.set(h*w/64, h, 1); return s;                // conserva el aspecto (sin deformar)
 }
 function roundRect(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);
   x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath();}
@@ -605,19 +610,25 @@ const strutBallA=new THREE.Mesh(new THREE.SphereGeometry(0.016,14,12),MAT.rod.cl
 const strutBallB=new THREE.Mesh(new THREE.SphereGeometry(0.016,14,12),MAT.rod.clone());
 strutBallA.userData.cat='steel'; strutBallB.userData.cat='steel';
 armYaw.add(strutBallA,strutBallB);
-// brackets (clevis) que unen cada extremo del strut a su tubo: separan la rótula
-// del eje del tubo (offset en Z) para que el strut trabaje a un costado del brazo.
+// anclaje del strut al tubo: la carga la toma un PERNO DE ACERO PASANTE (doble
+// cortante a través del fierro); el plástico impreso es sólo un saddle que apoya y
+// separa la rótula. Así aguanta el empuje del gas sin depender del plástico.
 function strutBracket(){
   const g=new THREE.Group();
-  const tab=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.028,0.075),MAT.printed.clone());  // pletina impresa/atornillada al tubo
-  tab.userData.cat='printed'; g.add(tab);
-  const stud=new THREE.Mesh(new THREE.CylinderGeometry(0.006,0.006,0.03,10).rotateX(Math.PI/2),MAT.steel.clone());
-  stud.position.z=0.045; stud.userData.cat='steel'; g.add(stud);   // perno/rótula stud al que engancha el strut
+  const bolt=new THREE.Mesh(new THREE.CylinderGeometry(0.007,0.007,0.14,12).rotateX(Math.PI/2),MAT.steel.clone());
+  bolt.position.z=0.02; bolt.userData.cat='steel'; g.add(bolt);          // perno M6/M8 que cruza el tubo
+  const nut=new THREE.Mesh(new THREE.CylinderGeometry(0.013,0.013,0.011,6).rotateX(Math.PI/2),MAT.steel.clone());
+  nut.position.z=-0.045; nut.userData.cat='steel'; g.add(nut);           // tuerca al otro lado del tubo
+  const saddle=new THREE.Mesh(new THREE.CylinderGeometry(0.019,0.024,0.02,18).rotateX(Math.PI/2),MAT.printed.clone());
+  saddle.position.z=0.035; saddle.userData.cat='printed'; g.add(saddle); // saddle impreso: apoya en el tubo y reparte
   return g;
 }
 const strutBktA=strutBracket(), strutBktB=strutBracket();
 armYaw.add(strutBktA,strutBktB);
 const strutLabel=label('gas strut','#18b6a6'); strutLabel.visible=false; scene.add(strutLabel);
+const strutLabelA=label('rótula A → tubo inf.','#18b6a6'); strutLabelA.visible=false; scene.add(strutLabelA);
+const strutLabelB=label('rótula B → tubo sup.','#18b6a6'); strutLabelB.visible=false; scene.add(strutLabelB);
+const boltLabel=label('perno de acero pasante','#d7dee6'); boltLabel.visible=false; scene.add(boltLabel);
 const hubLabel=label('junta plástica + eje de acero','#ff6a3d'); hubLabel.visible=false; scene.add(hubLabel);
 // registra el carro completo (brazo+poste+bearing) como pieza explotable, sin sobreescribir categorías
 carriage.userData.assembled=carriage.position.clone();
@@ -661,11 +672,14 @@ function solveArm(target){
   strutRod.position.set(Ax+ux*rodC, Ay+uy*rodC, cz); strutRod.rotation.set(0,0,sang);
   strutRod.scale.x=rodLen/STRUT_RODGEO;                    // estira/encoge el vástago
   strutBallA.position.set(Ax,Ay,cz); strutBallB.position.set(Bx,By,cz);         // rótulas del strut
-  strutBktA.position.set(Ax,Ay,cz*0.55); strutBktB.position.set(Bx,By,cz*0.55); // brackets tubo→rótula
+  strutBktA.position.set(Ax,Ay,0); strutBktB.position.set(Bx,By,0);             // perno pasante tubo→rótula
   strutLen=sd;
   elbowAngleDeg=(Math.PI-a2)*180/Math.PI;
   // etiquetas
   strutBody.getWorldPosition(strutLabel.position); strutLabel.position.y+=0.14;
+  strutBallA.getWorldPosition(strutLabelA.position); strutLabelA.position.y+=0.09;
+  strutBallB.getWorldPosition(strutLabelB.position); strutLabelB.position.y+=0.09;
+  strutBktA.getWorldPosition(boltLabel.position); boltLabel.position.y-=0.10;
   shoulder.getWorldPosition(hubLabel.position); hubLabel.position.y+=0.16;
 }
 
@@ -771,7 +785,7 @@ bindRange('sB','vB',v=>v+'°',v=>{edgeDeg=v;rebuildBowl();});
 $('cWalk').onchange=e=>walkOn=e.target.checked;
 $('cForces').onchange=e=>{for(const a of Object.values(arrows))a.visible=e.target.checked;};
 brgLabel.position.set(0, 0.18, Rb+0.12);
-$('cLabels').onchange=e=>{strutLabel.visible=hubLabel.visible=brgLabel.visible=e.target.checked;};
+$('cLabels').onchange=e=>{strutLabel.visible=strutLabelA.visible=strutLabelB.visible=boltLabel.visible=hubLabel.visible=brgLabel.visible=e.target.checked;};
 $('cPrinted').onchange=e=>highlight('printed',e.target.checked);
 $('cHyd').onchange=e=>highlight('hydraulic',e.target.checked);
 $('bAssemble').onclick=()=>assemblyTarget=1;
@@ -788,6 +802,7 @@ $('bFall').onclick=()=>{fallAnim={t:0};};
   if(q.has('explode')){ assembly=assemblyTarget=0; }
   if(q.has('cam')){ const c=q.get('cam').split(',').map(Number); if(c.length===3) camera.position.set(c[0],c[1],c[2]); }
   if(q.has('tgt')){ const c=q.get('tgt').split(',').map(Number); if(c.length===3) controls.target.set(c[0],c[1],c[2]); }
+  if(q.has('labels')){ const e=$('cLabels'); if(e){ e.checked=true; e.onchange({target:e}); } }
 })();
 
 // ---------- Componentes / dónde comprar (Chile) ----------
