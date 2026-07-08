@@ -593,8 +593,9 @@ const wBall=new THREE.Mesh(new THREE.SphereGeometry(0.023,18,14),MAT.rod.clone()
 wBall.position.x=0.05; wBall.userData.cat='steel'; wrist.add(wBall);
 const vest=wrist;   // alias de compatibilidad
 // resorte de gas (hidráulico) con terminales de rótula: cuerpo + vástago + bolas
-const strutBody=new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.022,0.22,16),MAT.hyd.clone());
-const strutRod =new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.011,0.24,12),MAT.rod.clone());
+//   geometría con eje largo en X (rotateZ) para orientarla con rotation.z = ángulo del puente
+const strutBody=new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.022,0.18,16).rotateZ(Math.PI/2),MAT.hyd.clone());
+const strutRod =new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.011,0.22,12).rotateZ(Math.PI/2),MAT.rod.clone());
 strutBody.userData.cat='hydraulic'; strutRod.userData.cat='hydraulic';
 armYaw.add(strutBody,strutRod);
 const strutBallA=new THREE.Mesh(new THREE.SphereGeometry(0.016,14,12),MAT.rod.clone());
@@ -636,9 +637,11 @@ function solveArm(target){
   // a un costado (offset Z). Ley de cosenos: Ls² = a² + b² − 2·a·b·cos(θ_codo)
   const Ax=ex*0.60, Ay=ey*0.60;                         // anclaje A en link1
   const Bx=ex+(px-ex)*0.42, By=ey+(py-ey)*0.42;         // anclaje B en link2
-  placeSegment(strutBody,Ax,Ay,Bx,By); strutBody.position.z=0.092;
-  strutRod.position.copy(strutBody.position); strutRod.rotation.copy(strutBody.rotation);
-  strutBallA.position.set(Ax,Ay,0.092); strutBallB.position.set(Bx,By,0.092);  // rótulas del strut
+  // strut TELESCÓPICO: cuerpo anclado en A hacia B, vástago anclado en B hacia A (desliza dentro)
+  const sang=Math.atan2(By-Ay,Bx-Ax), ux=Math.cos(sang), uy=Math.sin(sang), cz=0.092;
+  strutBody.position.set(Ax+ux*0.09, Ay+uy*0.09, cz); strutBody.rotation.set(0,0,sang);
+  strutRod .position.set(Bx-ux*0.11, By-uy*0.11, cz); strutRod .rotation.set(0,0,sang);
+  strutBallA.position.set(Ax,Ay,cz); strutBallB.position.set(Bx,By,cz);         // rótulas del strut
   strutLen=Math.hypot(Bx-Ax,By-Ay);
   elbowAngleDeg=(Math.PI-a2)*180/Math.PI;
   // etiquetas
