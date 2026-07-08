@@ -204,6 +204,17 @@
     sigue al cuerpo. Al <b>dejarte caer</b>, el <b>resorte de gas</b> se comprime y
     te sostiene.
   </p>
+  <details><summary>Juntas: eje plástico con centro metálico (estilo Omni One)</summary>
+  <p class="phys">
+    Cada articulación es un <b>nudillo impreso en 3D</b> con un <b>eje de acero
+    pasante</b> (el «centro metálico»): el plástico <em>posiciona y abraza con
+    tolerancia</em>, y el <b>perno/pin de acero</b> toma la carga y define el giro —
+    así <b>rota suave y no se rompe ni se cae</b>. Los eslabones son <b>tubo de fierro
+    cuadrado</b> sujetos por <b>clamps partidos</b> (línea de partición + 2 pernos de
+    apriete). La <b>muñeca</b> es una <b>rótula</b> (bola de acero en copa plástica)
+    para seguir la espalda en 3D sin trabarse. El resorte de gas monta con
+    <b>terminales de rótula</b> en cada extremo.
+  </p></details>
   <details><summary>Física del resorte de gas (muelle neumático)</summary>
   <p class="phys">
     Un pistón encierra gas (N₂) a presión. Comprimir el vástago reduce el volumen y,
@@ -520,26 +531,78 @@ pbase.position.set(Rring,0.11+0.44-0.03,0); pbase.userData.cat='steel'; carriage
 // ================= BRAZO ARTICULADO (IK) + HIDRÁULICA =================
 const armYaw = new THREE.Group();     // orientación fina del brazo hacia la espalda
 armYaw.position.copy(HUB); carriage.add(armYaw);
-// hub impreso (abraza el rodamiento de bici)
-const hub=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.09,20),MAT.printed.clone());
-armYaw.add(hub); hub.userData.cat='printed';
+// ---------- FÁBRICA DE JUNTAS INDUSTRIALES (estilo Omni One) ----------
+//  El PLÁSTICO impreso abraza y posiciona; un EJE DE ACERO pasante (centro
+//  metálico) toma la carga y define el giro. Encaje en los tubos con tolerancia.
+function splitClamp(tubeW, len=0.045){   // clamp partido que abraza un tubo (eje del tubo = X local)
+  const g=new THREE.Group(); const o=tubeW+0.028;
+  const body=new THREE.Mesh(new THREE.BoxGeometry(len,o,o), MAT.printed.clone());
+  body.userData.cat='printed'; body.castShadow=true; g.add(body);
+  const slot=new THREE.Mesh(new THREE.BoxGeometry(len+0.004,0.0035,o+0.002),   // ranura del split
+    new THREE.MeshStandardMaterial({color:0x0c0e11,roughness:1})); g.add(slot);
+  for(const z of [-1,1]){                 // 2 pernos de apriete (acero) que cruzan la ranura
+    const bolt=new THREE.Mesh(new THREE.CylinderGeometry(0.0055,0.0055,o+0.014,10), MAT.steel.clone());
+    bolt.position.set(0,0,z*(o/2-0.011)); bolt.userData.cat='steel'; g.add(bolt);
+    const head=new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.011,0.006,6), MAT.steel.clone());
+    head.position.set(0,o/2+0.003,z*(o/2-0.011)); head.userData.cat='steel'; g.add(head);
+  }
+  return g;
+}
+function pinJoint(barrelR=0.038, plasticW=0.07){  // nudillo plástico + EJE DE ACERO pasante (hinge en Z)
+  const g=new THREE.Group();
+  const barrel=new THREE.Mesh(new THREE.CylinderGeometry(barrelR,barrelR,plasticW,24).rotateX(Math.PI/2),
+    MAT.printed.clone()); barrel.userData.cat='printed'; barrel.castShadow=true; g.add(barrel);
+  const collar=new THREE.Mesh(new THREE.CylinderGeometry(barrelR*0.55,barrelR*0.55,plasticW+0.024,16).rotateX(Math.PI/2),
+    MAT.printed.clone()); collar.userData.cat='printed'; g.add(collar);        // buje/oreja saliente
+  const pinL=plasticW+0.05;
+  const pin=new THREE.Mesh(new THREE.CylinderGeometry(0.013,0.013,pinL,16).rotateX(Math.PI/2),
+    MAT.rod.clone()); pin.userData.cat='steel'; g.add(pin);                    // el "centro metálico"
+  const head=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.011,20).rotateX(Math.PI/2),
+    MAT.steel.clone()); head.position.z=pinL/2; head.userData.cat='steel'; g.add(head);
+  const nut=new THREE.Mesh(new THREE.CylinderGeometry(0.019,0.019,0.013,6).rotateX(Math.PI/2),
+    MAT.steel.clone()); nut.position.z=-pinL/2; nut.userData.cat='steel'; g.add(nut);
+  return g;
+}
+
 const L1=0.7, L2=0.7;   // alcance suficiente para la espalda en todo el rango de altura
+// tubos de ACERO (fierro cuadrado): quien resiste la fuerza
 const link1=new THREE.Mesh(new THREE.BoxGeometry(L1,0.05,0.05),MAT.steel.clone());
 const link2=new THREE.Mesh(new THREE.BoxGeometry(L2,0.045,0.045),MAT.steel.clone());
 link1.userData.cat='steel'; link2.userData.cat='steel';
 armYaw.add(link1,link2);
-const elbow=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.06,16).rotateX(Math.PI/2),
-  MAT.printed.clone()); armYaw.add(elbow); elbow.userData.cat='printed';
-// resorte de gas (hidráulico): cuerpo + vástago
+// clamps plásticos que abrazan cada extremo del tubo (encaje con tolerancia, no se cae)
+for(const [lk,w,L] of [[link1,0.05,L1],[link2,0.045,L2]]){
+  for(const s of [-1,1]){ const c=splitClamp(w); c.position.x=s*(L/2-0.135); lk.add(c); }
+}
+// juntas de revolución: nudillo plástico + eje de acero (hombro y codo)
+const shoulder=pinJoint(0.044,0.086); armYaw.add(shoulder);   // pitch del brazo
+const elbow=pinJoint(0.04,0.08);     armYaw.add(elbow);       // codo
+// abrazadera del hombro sobre el poste vertical + buje de giro 360°
+const postClamp=splitClamp(0.07,0.055); postClamp.rotation.z=Math.PI/2;
+postClamp.position.y=-0.05; armYaw.add(postClamp);
+const yawBush=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.05,20),MAT.printed.clone());
+yawBush.userData.cat='printed'; armYaw.add(yawBush);          // buje de giro (yaw) del brazo
+// muñeca = RÓTULA (ball joint): copa plástica + bola de acero (sigue la espalda sin trabarse)
+//   construida a lo largo de +X local para alinearla con link2 al rotar
+const wrist=new THREE.Group(); armYaw.add(wrist);
+const wSock=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.037,0.05,20).rotateZ(Math.PI/2),MAT.printed.clone());
+wSock.position.x=-0.012; wSock.userData.cat='printed'; wSock.castShadow=true; wrist.add(wSock);
+const wStud=new THREE.Mesh(new THREE.CylinderGeometry(0.009,0.009,0.05,12).rotateZ(Math.PI/2),MAT.steel.clone());
+wStud.position.x=0.024; wStud.userData.cat='steel'; wrist.add(wStud);
+const wBall=new THREE.Mesh(new THREE.SphereGeometry(0.023,18,14),MAT.rod.clone());
+wBall.position.x=0.05; wBall.userData.cat='steel'; wrist.add(wBall);
+const vest=wrist;   // alias de compatibilidad
+// resorte de gas (hidráulico) con terminales de rótula: cuerpo + vástago + bolas
 const strutBody=new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.022,0.22,16),MAT.hyd.clone());
 const strutRod =new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.011,0.24,12),MAT.rod.clone());
 strutBody.userData.cat='hydraulic'; strutRod.userData.cat='hydraulic';
 armYaw.add(strutBody,strutRod);
-// extremo del brazo (pequeña pinza impresa que engancha la placa de la espalda)
-const vest=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.09,0.11),MAT.printed.clone());
-vest.userData.cat='printed'; armYaw.add(vest);
+const strutBallA=new THREE.Mesh(new THREE.SphereGeometry(0.016,14,12),MAT.rod.clone());
+const strutBallB=new THREE.Mesh(new THREE.SphereGeometry(0.016,14,12),MAT.rod.clone());
+strutBallA.userData.cat='steel'; strutBallB.userData.cat='steel';
+armYaw.add(strutBallA,strutBallB);
 const strutLabel=label('gas strut','#18b6a6'); strutLabel.visible=false; scene.add(strutLabel);
-const hubLabel=label('hub 360° (rodamiento bici)','#ff6a3d'); hubLabel.visible=false; scene.add(hubLabel);
+const hubLabel=label('junta plástica + eje de acero','#ff6a3d'); hubLabel.visible=false; scene.add(hubLabel);
 // registra el carro completo (brazo+poste+bearing) como pieza explotable, sin sobreescribir categorías
 carriage.userData.assembled=carriage.position.clone();
 carriage.userData.explode=new THREE.Vector3(1.4,0.7,0);
@@ -565,19 +628,22 @@ function solveArm(target){
   const ex=Math.cos(a1)*L1, ey=Math.sin(a1)*L1;        // codo (fin = objetivo px,py)
   placeSegment(link1,0,0,ex,ey);
   placeSegment(link2,ex,ey,px,py);
+  // juntas: nudillo plástico + eje de acero en hombro y codo; rótula en la muñeca
+  shoulder.position.set(0,0,0);
   elbow.position.set(ex,ey,0);
-  vest.position.set(px,py,0); vest.rotation.z=0;
+  wrist.position.set(px,py,0); wrist.rotation.z=Math.atan2(py-ey,px-ex);
   // gas strut = PUENTE del codo: une el eslabón inferior (link1) con el superior (link2)
   // a un costado (offset Z). Ley de cosenos: Ls² = a² + b² − 2·a·b·cos(θ_codo)
   const Ax=ex*0.60, Ay=ey*0.60;                         // anclaje A en link1
   const Bx=ex+(px-ex)*0.42, By=ey+(py-ey)*0.42;         // anclaje B en link2
-  placeSegment(strutBody,Ax,Ay,Bx,By); strutBody.position.z=0.06;
+  placeSegment(strutBody,Ax,Ay,Bx,By); strutBody.position.z=0.092;
   strutRod.position.copy(strutBody.position); strutRod.rotation.copy(strutBody.rotation);
+  strutBallA.position.set(Ax,Ay,0.092); strutBallB.position.set(Bx,By,0.092);  // rótulas del strut
   strutLen=Math.hypot(Bx-Ax,By-Ay);
   elbowAngleDeg=(Math.PI-a2)*180/Math.PI;
   // etiquetas
   strutBody.getWorldPosition(strutLabel.position); strutLabel.position.y+=0.14;
-  hub.getWorldPosition(hubLabel.position); hubLabel.position.y+=0.16;
+  shoulder.getWorldPosition(hubLabel.position); hubLabel.position.y+=0.16;
 }
 
 // ================= HUMANOIDE (Xbot GLB rigged, con animación de caminar) =================
