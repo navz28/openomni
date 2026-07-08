@@ -592,10 +592,13 @@ wStud.position.x=0.024; wStud.userData.cat='steel'; wrist.add(wStud);
 const wBall=new THREE.Mesh(new THREE.SphereGeometry(0.023,18,14),MAT.rod.clone());
 wBall.position.x=0.05; wBall.userData.cat='steel'; wrist.add(wBall);
 const vest=wrist;   // alias de compatibilidad
-// resorte de gas (hidráulico) con terminales de rótula: cuerpo + vástago + bolas
-//   geometría con eje largo en X (rotateZ) para orientarla con rotation.z = ángulo del puente
-const strutBody=new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.022,0.18,16).rotateZ(Math.PI/2),MAT.hyd.clone());
-const strutRod =new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.011,0.22,12).rotateZ(Math.PI/2),MAT.rod.clone());
+// resorte de gas (hidráulico) con terminales de rótula: cuerpo FIJO + vástago que DESLIZA
+//   geometría con eje largo en X (rotateZ) para orientarla con rotation.z = ángulo del puente.
+//   el vástago se escala en X según la distancia entre anclajes (así nunca queda hueco).
+const STRUT_LB=0.15;                 // largo fijo del cuerpo del cilindro
+const STRUT_RODGEO=0.20;             // largo nominal de la geometría del vástago (se escala)
+const strutBody=new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.022,STRUT_LB,16).rotateZ(Math.PI/2),MAT.hyd.clone());
+const strutRod =new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.011,STRUT_RODGEO,12).rotateZ(Math.PI/2),MAT.rod.clone());
 strutBody.userData.cat='hydraulic'; strutRod.userData.cat='hydraulic';
 armYaw.add(strutBody,strutRod);
 const strutBallA=new THREE.Mesh(new THREE.SphereGeometry(0.016,14,12),MAT.rod.clone());
@@ -637,12 +640,16 @@ function solveArm(target){
   // a un costado (offset Z). Ley de cosenos: Ls² = a² + b² − 2·a·b·cos(θ_codo)
   const Ax=ex*0.60, Ay=ey*0.60;                         // anclaje A en link1
   const Bx=ex+(px-ex)*0.42, By=ey+(py-ey)*0.42;         // anclaje B en link2
-  // strut TELESCÓPICO: cuerpo anclado en A hacia B, vástago anclado en B hacia A (desliza dentro)
+  // strut TELESCÓPICO: cuerpo FIJO desde A; el vástago DESLIZA para cubrir hasta B (sin hueco)
   const sang=Math.atan2(By-Ay,Bx-Ax), ux=Math.cos(sang), uy=Math.sin(sang), cz=0.092;
-  strutBody.position.set(Ax+ux*0.09, Ay+uy*0.09, cz); strutBody.rotation.set(0,0,sang);
-  strutRod .position.set(Bx-ux*0.11, By-uy*0.11, cz); strutRod .rotation.set(0,0,sang);
+  const sd=Math.hypot(Bx-Ax,By-Ay);                        // distancia entre anclajes
+  strutBody.position.set(Ax+ux*STRUT_LB/2, Ay+uy*STRUT_LB/2, cz); strutBody.rotation.set(0,0,sang);
+  const rodLen=Math.max(0.05, sd-STRUT_LB+0.05);           // largo visible del vástago (solapa 0.05 dentro)
+  const rodC=(STRUT_LB-0.05)+rodLen/2;                     // centro del vástago a lo largo de u
+  strutRod.position.set(Ax+ux*rodC, Ay+uy*rodC, cz); strutRod.rotation.set(0,0,sang);
+  strutRod.scale.x=rodLen/STRUT_RODGEO;                    // estira/encoge el vástago
   strutBallA.position.set(Ax,Ay,cz); strutBallB.position.set(Bx,By,cz);         // rótulas del strut
-  strutLen=Math.hypot(Bx-Ax,By-Ay);
+  strutLen=sd;
   elbowAngleDeg=(Math.PI-a2)*180/Math.PI;
   // etiquetas
   strutBody.getWorldPosition(strutLabel.position); strutLabel.position.y+=0.14;
