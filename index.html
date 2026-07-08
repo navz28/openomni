@@ -103,6 +103,31 @@
   #mobileMsg .big span{color:var(--accent)}
   #mobileMsg p{color:var(--muted);max-width:440px;line-height:1.55;font-size:14px;margin:0}
   #mobileMsg a{color:var(--muted);font-size:12px;margin-top:14px;opacity:.7}
+  #costModal{position:fixed;inset:0;background:#000b;backdrop-filter:blur(4px);display:none;
+    z-index:55;align-items:center;justify-content:center}
+  #costCard{background:var(--panel2);border:1px solid var(--stroke);border-radius:16px;
+    width:min(960px,95vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+  #costBody{overflow:auto;padding:10px 18px 20px}
+  .ct{display:flex;gap:12px;margin:10px 0 6px}
+  .ctcard{flex:1;background:#0c0f14;border:1px solid var(--stroke);border-radius:12px;padding:12px 14px;cursor:pointer}
+  .ctcard.sel{border-color:var(--accent2)}
+  .ctcard .lbl{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px}
+  .ctcard .amt{font-size:25px;font-weight:800;margin-top:2px}
+  .ctcard .amt.eco{color:var(--accent2)}
+  .ctbadge{display:inline-block;font-size:11px;background:#18b6a622;color:var(--accent2);border-radius:20px;padding:2px 8px;margin-left:6px;vertical-align:middle}
+  .cbar{margin:8px 0}
+  .cbar .nm{font-size:12px;margin-bottom:3px;display:flex;justify-content:space-between}
+  .cbar .track{background:#0c0f14;border-radius:6px;height:22px;position:relative;overflow:hidden}
+  .cbar .bmax{position:absolute;inset:0 auto 0 0;height:100%;background:#3a4759}
+  .cbar .beco{position:absolute;inset:0 auto 0 0;height:100%;background:linear-gradient(90deg,#18b6a6,#0f9488)}
+  .ctbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:2px}
+  .ctbl th{text-align:left;color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:4px 8px;border-bottom:1px solid var(--stroke)}
+  .ctbl td{padding:5px 8px;border-bottom:1px solid #1a222c;vertical-align:top}
+  .ctbl td.nmax{color:#8b97a6;white-space:nowrap;text-align:right}
+  .ctbl td.neco{color:var(--accent2);white-space:nowrap;text-align:right}
+  .ctbl td.note{color:var(--muted);font-size:11px}
+  #costCard.sc-eco .ctbl td.nmax,#costCard.sc-eco .cbar .bmax{opacity:.4}
+  #costCard.sc-max .ctbl td.neco{opacity:.5}
   @media (max-width:900px){#left,#right{width:44vw;font-size:11px}}
 </style>
 
@@ -202,15 +227,21 @@
     ajustan solos.
   </p></details>
 
-  <div style="margin-top:16px;padding:11px 13px;background:#3a2a0e;border:1px solid #d9a441;border-radius:10px">
-    <div style="font-size:11px;font-weight:800;color:#ffcf7a;letter-spacing:.7px">⚠ POR REVISAR — observación importante</div>
+  <div style="margin-top:16px;padding:11px 13px;background:#0e2a24;border:1px solid #18b6a6;border-radius:10px">
+    <div style="font-size:11px;font-weight:800;color:#4fe0cf;letter-spacing:.7px">⚙ INGENIERÍA — torre de giro (caminos de carga separados)</div>
     <p class="phys" style="margin:7px 0 0">
-      En el Omni One, <b>el anillo del brazo y la plataforma parecen compartir el MISMO rodamiento
-      central</b>, y hay una <b>base estructural que sostiene la plataforma</b>. Falta confirmar:
-      (1) si es un solo rodamiento grande o dos concéntricos; (2) cómo se reparte ese bearing entre
-      el <em>giro del brazo</em> y el <em>soporte del peso</em> de la plataforma; (3) cómo la base
-      transmite el peso del usuario + el momento del brazo al piso. Impacta el diseño del giro y el
-      análisis de cargas — el modelo actual (collar giratorio + base) es una aproximación por validar.
+      La observación era: en el Omni One el anillo del brazo y la plataforma parecían compartir el
+      mismo rodamiento central. Este modelo lo resuelve con un <b>rodamiento de giro (slewing ring)</b>
+      y <b>dos caminos de carga separados</b>:<br>
+      • <b>Peso del usuario</b> → cuenco → <b>pedestal central FIJO</b> (pasa por el eje/bore del
+      rodamiento) → placa base → piso. <em>El rodamiento no soporta el peso.</em><br>
+      • <b>Giro del brazo</b> → carro giratorio → <b>pista interna → bolas → pista externa fija</b>
+      → placa base → piso. El rodamiento solo toma el <em>giro y el momento</em> del brazo
+      (M ≈ P<sub>h</sub>·h), mucho más liviano.<br>
+      Apilado de abajo→arriba: <b>placa base + patas</b> · <b>rodamiento</b> · <b>brazo</b> ·
+      <b>pedestal</b> · <b>plataforma (cuenco) arriba</b>. Un solo slewing ring también podría cargar
+      ambos (están hechos para carga combinada axial+momento), pero separar los caminos es más barato
+      y seguro de construir. <em>Falta validar físicamente el prototipo.</em>
     </p>
   </div>
 </div>
@@ -221,6 +252,7 @@
   <button id="bFall" class="acc2">Dejarse caer ⤵</button>
   <button id="bReset">Reset vista</button>
   <button id="bBuy" class="acc2">📦 Componentes (Chile)</button>
+  <button id="bCost" class="acc2">💰 Costos</button>
   <button id="bScad" class="acc2">⚙️ Código SCAD</button>
   <a class="dl" href="./cad/bowl.stl" download>STL cuenco</a>
   <a class="dl" href="./cad/overshoe.stl" download>STL calzado</a>
@@ -253,6 +285,16 @@
     <button id="scadCopy">Copiar</button>
     <span id="scadStatus"></span>
   </div>
+</div></div>
+<div id="costModal"><div id="costCard">
+  <div id="buyHead">
+    <b>💰 Presupuesto OpenOmni — Antofagasta (CLP)</b>
+    <span style="flex:1"></span>
+    <a class="dl" href="./docs/costos-antofagasta-clp.xlsx" download>⤓ Excel</a>
+    <a class="dl" href="./docs/costos-antofagasta-clp.csv" download>⤓ CSV</a>
+    <button id="costClose">✕</button>
+  </div>
+  <div id="costBody"></div>
 </div></div>
 
 <div id="paperMini" title="Abrir el paper">
@@ -404,63 +446,76 @@ function rebuildBowl(){
   buildBowl();
 }
 
-// ================= BASE / ESTRUCTURA =================
-const struct = new THREE.Group(); scene.add(struct); struct.position.y = DECK;
-// patas (elevan la plataforma; dejan ver el mecanismo de giro debajo)
-const legs = new THREE.Group(); scene.add(legs);
-const legH = DECK-0.03;
-for(let i=0;i<8;i++){ const a=i*Math.PI/4+Math.PI/8;
-  const leg=new THREE.Mesh(new THREE.BoxGeometry(0.06,legH,0.06), MAT.wood.clone());
-  leg.position.set(Math.cos(a)*(R+0.10), legH/2, Math.sin(a)*(R+0.10)); leg.userData.cat='wood';
-  leg.castShadow=true; legs.add(leg);
-}
-// marco perimetral inferior (octágono) que amarra las patas al piso
-{ const fp=[], fh=new THREE.Path();
-  for(let i=0;i<=8;i++){const a=i*Math.PI/4+Math.PI/8; fp.push(new THREE.Vector2(Math.cos(a)*(R+0.15),Math.sin(a)*(R+0.15)));}
-  for(let i=0;i<=8;i++){const a=i*Math.PI/4+Math.PI/8; fh.lineTo(Math.cos(a)*(R+0.05),Math.sin(a)*(R+0.05));}
-  const fs=new THREE.Shape(fp); fs.holes.push(fh);
-  const frame=new THREE.Mesh(new THREE.ExtrudeGeometry(fs,{depth:0.05,bevelEnabled:false}).rotateX(-Math.PI/2), MAT.wood.clone());
-  frame.position.y=0.05; frame.userData.cat='wood'; frame.castShadow=true; legs.add(frame);
-}
-// base de madera (placa) bajo el cuenco
-const baseplate = new THREE.Mesh(new THREE.CylinderGeometry(R+0.16,R+0.16,0.05,8),
-  MAT.wood.clone()); baseplate.position.y=-0.05; struct.add(baseplate);
-reg(baseplate,9,new THREE.Vector3(0,-0.55,0),'wood');
-// lastre trasero
-const ballast = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.14,0.7),
-  new THREE.MeshStandardMaterial({color:0x6b5540,roughness:1}));
-ballast.position.set(0.35,-0.15,0); struct.add(ballast);   // oculto bajo la base (no asoma por el cuenco)
-reg(ballast,10,new THREE.Vector3(0,-0.85,0),'wood');
-// aro de acero octagonal
-const ringPts=[]; for(let i=0;i<=8;i++){const a=i*Math.PI/4+Math.PI/8;
-  ringPts.push(new THREE.Vector2(Math.cos(a)*(R+0.10),Math.sin(a)*(R+0.10)));}
-const ringShape=new THREE.Shape(ringPts);
-const ringHole=new THREE.Path(); for(let i=0;i<=8;i++){const a=i*Math.PI/4+Math.PI/8;
-  ringHole.lineTo(Math.cos(a)*(R+0.055),Math.sin(a)*(R+0.055));}
-ringShape.holes.push(ringHole);
-const ring=new THREE.Mesh(new THREE.ExtrudeGeometry(ringShape,{depth:0.04,bevelEnabled:false}).rotateX(-Math.PI/2),
-  MAT.steel.clone()); ring.position.y=0.0;
-struct.add(ring); reg(ring,11,new THREE.Vector3(0,-0.28,0),'steel');
-// ---- GIRO estilo OMNI ONE: ANILLO SÓLIDO giratorio (collar/turntable) que rodea la base ----
-const Rring = R + 0.26;
+// ============ BASE + RODAMIENTO CENTRAL DE GIRO (torre) ============
+//  Ingeniería real: DOS caminos de carga separados sobre UN rodamiento de giro
+//  (slewing ring), en vez de que el rodamiento cargue todo:
+//   · PESO del usuario  -> cuenco -> pedestal central FIJO -> placa base -> piso.
+//   · GIRO del brazo    -> carro giratorio -> pista interna -> bolas -> pista
+//                          externa fija -> placa base -> piso  (solo momento, sin peso).
+//  Apilado (abajo→arriba): placa base(+patas) → pista fija → bolas → pista giratoria
+//   → brazo/carro ; y por el eje: pedestal fijo → cono → plataforma (cuenco) ARRIBA.
+const Rring = R + 0.26;                          // radio del poste del brazo (fuera del cuenco)
 const HUB = new THREE.Vector3(Rring, DECK+0.35, 0);
-const brgLabel=label('anillo giratorio (turntable)','#d7dee6'); brgLabel.visible=false; scene.add(brgLabel);
-// disco base FIJO bajo el anillo (aloja el rodamiento tipo lazy-susan; no gira)
-const baseDisc=new THREE.Mesh(new THREE.CylinderGeometry(Rring+0.02,Rring+0.06,0.05,64),
-  new THREE.MeshStandardMaterial({color:0x14171c,roughness:1}));
-baseDisc.position.y=0.025; baseDisc.userData.cat='steel'; baseDisc.receiveShadow=true; scene.add(baseDisc);
-// carro giratorio = anillo sólido (collar) + poste. Gira suave sobre el disco base.
+const brgLabel=label('rodamiento de giro (slewing ring)','#d7dee6'); brgLabel.visible=false; scene.add(brgLabel);
+const Rb=0.30;                                   // radio primitivo (pitch) del rodamiento
+
+// ---------- ESTRUCTURA FIJA (no gira) ----------
+const struct = new THREE.Group(); scene.add(struct);
+// placa base de acero sobre el piso (recibe TODO al final)
+const basePlate=new THREE.Mesh(new THREE.CylinderGeometry(0.50,0.52,0.05,48),
+  new THREE.MeshStandardMaterial({color:0x3a4048,metalness:0.6,roughness:0.5}));
+basePlate.position.y=0.025; basePlate.userData.cat='steel'; basePlate.receiveShadow=true;
+struct.add(basePlate); reg(basePlate,9,new THREE.Vector3(0,-0.5,0),'steel');
+// 4 patas estabilizadoras (anti-vuelco por el momento del brazo)
+for(let i=0;i<4;i++){ const a=Math.PI/4+i*Math.PI/2;
+  const foot=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.035,0.12),MAT.steel.clone());
+  foot.position.set(Math.cos(a)*0.52,-0.005,Math.sin(a)*0.52); foot.rotation.y=-a;
+  foot.userData.cat='steel'; foot.castShadow=true; basePlate.add(foot); }
+// pista EXTERNA del rodamiento (FIJA, atornillada a la placa)
+const raceOut=new THREE.Mesh(new THREE.LatheGeometry(
+  [new THREE.Vector2(0.315,0),new THREE.Vector2(0.375,0),new THREE.Vector2(0.375,0.085),
+   new THREE.Vector2(0.345,0.085),new THREE.Vector2(0.345,0.058),new THREE.Vector2(0.315,0.05)],72),
+  new THREE.MeshStandardMaterial({color:0x2b2f36,metalness:0.7,roughness:0.35}));
+raceOut.position.y=0.05; raceOut.userData.cat='steel'; raceOut.castShadow=true;
+struct.add(raceOut); reg(raceOut,10,new THREE.Vector3(0,-0.28,0),'steel');
+// bolas / rodillos (entre pistas) — cuelgan de la pista externa
+const ballMat=new THREE.MeshStandardMaterial({color:0xd7dee6,metalness:0.95,roughness:0.15});
+for(let i=0;i<24;i++){ const a=i/24*Math.PI*2;
+  const b=new THREE.Mesh(new THREE.SphereGeometry(0.022,12,10),ballMat);
+  b.position.set(Math.cos(a)*Rb,0.042,Math.sin(a)*Rb); raceOut.add(b); }
+// pedestal central FIJO: sube por el eje (bore) del rodamiento y sostiene la plataforma
+const pedestal=new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.095,DECK-0.02,24),
+  new THREE.MeshStandardMaterial({color:0x4a5058,metalness:0.55,roughness:0.5}));
+pedestal.position.y=(DECK-0.02)/2+0.02; pedestal.userData.cat='steel'; pedestal.castShadow=true;
+struct.add(pedestal); reg(pedestal,11,new THREE.Vector3(0,0.6,0),'steel');
+// cono que ensancha el pedestal bajo el cuenco (reparte el peso al centro del deck)
+const flare=new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.11,0.10,32,1,true),
+  new THREE.MeshStandardMaterial({color:0x4a5058,metalness:0.55,roughness:0.5,side:THREE.DoubleSide}));
+flare.position.y=0.035; flare.userData.cat='steel'; pedestal.add(flare);
+const capPlate=new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.34,0.02,32),MAT.steel.clone());
+capPlate.position.y=0.085; capPlate.userData.cat='steel'; pedestal.add(capPlate);
+
+// ---------- CARRO GIRATORIO (gira con el usuario) ----------
 const carriage = new THREE.Group(); scene.add(carriage);
-const rin=Rring-0.10, rout=Rring+0.04, rh=0.15;
-const ringProfile=[new THREE.Vector2(rin,0),new THREE.Vector2(rout,0),new THREE.Vector2(rout,rh),
-  new THREE.Vector2(rout-0.02,rh+0.02),new THREE.Vector2(rin,rh+0.02)];
-const collar=new THREE.Mesh(new THREE.LatheGeometry(ringProfile,80),
-  new THREE.MeshStandardMaterial({color:0x23262c,metalness:0.4,roughness:0.5}));
-collar.position.y=0.05; collar.userData.cat='steel'; collar.castShadow=true; carriage.add(collar);
-const pbase=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.09,0.18),MAT.steel.clone());
-pbase.position.set(Rring,0.05+rh+0.02,0); pbase.userData.cat='steel'; carriage.add(pbase);
-const post=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.62,0.08),MAT.steel.clone());
-post.position.set(Rring, 0.05+rh+0.34, 0); post.userData.cat='steel'; carriage.add(post);
+// pista INTERNA (giratoria) del rodamiento
+const raceIn=new THREE.Mesh(new THREE.LatheGeometry(
+  [new THREE.Vector2(0.225,0),new THREE.Vector2(0.285,0),new THREE.Vector2(0.285,0.05),
+   new THREE.Vector2(0.255,0.06),new THREE.Vector2(0.255,0.085),new THREE.Vector2(0.225,0.085)],72),
+  new THREE.MeshStandardMaterial({color:0x565b62,metalness:0.75,roughness:0.35}));
+raceIn.position.y=0.05; raceIn.userData.cat='steel'; raceIn.castShadow=true; carriage.add(raceIn);
+// brazo radial (carrier): saca la carga del centro al poste, por DEBAJO del cuenco
+const carrierArm=new THREE.Mesh(new THREE.BoxGeometry(Rring-0.20,0.05,0.11),MAT.steel.clone());
+carrierArm.position.set((0.20+Rring)/2,0.11,0); carrierArm.userData.cat='steel';
+carrierArm.castShadow=true; carriage.add(carrierArm);
+// cartela que rigidiza la unión pista↔brazo (toma el momento)
+const gusset=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.10,0.05),MAT.steel.clone());
+gusset.position.set(0.30,0.13,0); gusset.userData.cat='steel'; carriage.add(gusset);
+// poste vertical (FUERA del cuenco) que sube al hub del brazo
+const post=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.44,0.07),MAT.steel.clone());
+post.position.set(Rring, 0.11+0.22, 0); post.userData.cat='steel'; post.castShadow=true; carriage.add(post);
+// placa de montaje del brazo en el tope del poste
+const pbase=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.06,0.16),MAT.steel.clone());
+pbase.position.set(Rring,0.11+0.44-0.03,0); pbase.userData.cat='steel'; carriage.add(pbase);
 
 // ================= BRAZO ARTICULADO (IK) + HIDRÁULICA =================
 const armYaw = new THREE.Group();     // orientación fina del brazo hacia la espalda
@@ -626,7 +681,7 @@ bindRange('sT','vT',v=>v+'°',v=>turnDeg=v);
 bindRange('sB','vB',v=>v+'°',v=>{edgeDeg=v;rebuildBowl();});
 $('cWalk').onchange=e=>walkOn=e.target.checked;
 $('cForces').onchange=e=>{for(const a of Object.values(arrows))a.visible=e.target.checked;};
-brgLabel.position.set(0, 0.16, Rring);
+brgLabel.position.set(0, 0.18, Rb+0.12);
 $('cLabels').onchange=e=>{strutLabel.visible=hubLabel.visible=brgLabel.visible=e.target.checked;};
 $('cPrinted').onchange=e=>highlight('printed',e.target.checked);
 $('cHyd').onchange=e=>highlight('hydraulic',e.target.checked);
@@ -641,6 +696,9 @@ $('bFall').onclick=()=>{fallAnim={t:0};};
   const q=new URLSearchParams(location.search);
   if(q.has('turn')){ turnDeg=+q.get('turn'); const e=$('sT'); if(e)e.value=turnDeg; $('vT').textContent=turnDeg+'°'; }
   if(q.has('lean')){ leanDeg=+q.get('lean'); const e=$('sL'); if(e)e.value=leanDeg; $('vL').textContent=leanDeg+'°'; }
+  if(q.has('explode')){ assembly=assemblyTarget=0; }
+  if(q.has('cam')){ const c=q.get('cam').split(',').map(Number); if(c.length===3) camera.position.set(c[0],c[1],c[2]); }
+  if(q.has('tgt')){ const c=q.get('tgt').split(',').map(Number); if(c.length===3) controls.target.set(c[0],c[1],c[2]); }
 })();
 
 // ---------- Componentes / dónde comprar (Chile) ----------
@@ -705,6 +763,47 @@ $('bBuy').onclick=()=>{ if(!$('buyBody').innerHTML) renderBuy(); $('buyModal').s
 $('buyClose').onclick=()=>$('buyModal').style.display='none';
 $('buyModal').addEventListener('click',e=>{ if(e.target.id==='buyModal') e.target.style.display='none'; });
 if(location.hash.toLowerCase().includes('buy')){ renderBuy(); $('buyModal').style.display='flex'; }
+
+// ---------- Visualizador de presupuesto (dos escenarios: máximo vs económico) ----------
+let COST=null, costScenario='eco';
+const clp=n=>'$'+(n||0).toLocaleString('es-CL');
+async function loadCost(){ if(COST) return COST;
+  COST=await (await fetch('./docs/costos.json?t='+Date.now())).json(); return COST; }
+function renderCost(){
+  const d=COST; if(!d) return;
+  const pct=Math.round(100*d.teco/d.tmax), save=100-pct;
+  const maxSub=Math.max(...d.groups.map(g=>g.smax));
+  let h='<p style="font-size:12.5px;color:var(--muted);margin:8px 0 2px;line-height:1.5">'
+    +'Dos escenarios para el <b>mismo diseño</b>. <b style="color:var(--txt)">Máximo</b> = comprar todo nuevo. '
+    +'<b style="color:var(--accent2)">Económico</b> = rescatando fierro/madera, alfombra+deslizadores en vez de HDPE, '
+    +'cilindro de silla de oficina, IMU de 6 ejes y sin FSR. <b style="color:var(--accent2)">Baja el costo a la mitad.</b></p>'
+    +'<div class="ct">'
+    +'<div class="ctcard'+(costScenario==='max'?' sel':'')+'" data-sc="max"><div class="lbl">Escenario máximo</div><div class="amt">'+clp(d.tmax)+'</div></div>'
+    +'<div class="ctcard'+(costScenario==='eco'?' sel':'')+'" data-sc="eco"><div class="lbl">Económico <span class="ctbadge">−'+save+'% · '+pct+'% del máx</span></div><div class="amt eco">'+clp(d.teco)+'</div></div>'
+    +'</div>'
+    +'<h4 style="margin:14px 0 4px;font-size:12px;letter-spacing:.5px;color:var(--muted);text-transform:uppercase">Costo por subsistema</h4>';
+  for(const g of d.groups){
+    const wmax=Math.round(100*g.smax/maxSub), weco=Math.round(100*g.seco/maxSub);
+    h+='<div class="cbar"><div class="nm"><span>'+g.g+'</span><span><b style="color:#8b97a6">'+clp(g.smax)+'</b> → <b style="color:var(--accent2)">'+clp(g.seco)+'</b></span></div>'
+      +'<div class="track"><div class="bmax" style="width:'+wmax+'%"></div><div class="beco" style="width:'+weco+'%"></div></div></div>';
+  }
+  h+='<h4 style="margin:16px 0 4px;font-size:12px;letter-spacing:.5px;color:var(--muted);text-transform:uppercase">Detalle · cómo bajar cada ítem</h4>';
+  for(const g of d.groups){
+    h+='<div class="bgrp"><h4>'+g.g+'</h4><table class="ctbl"><thead><tr><th>Componente</th><th style="text-align:center">Cant</th><th style="text-align:right">Máx</th><th style="text-align:right">ECO</th><th>Cómo bajar de precio</th></tr></thead><tbody>';
+    for(const it of g.items){
+      h+='<tr><td>'+it.n+'</td><td style="text-align:center">'+it.q+'</td><td class="nmax">'+clp(it.q*it.max)+'</td><td class="neco">'+clp(it.q*it.eco)+'</td><td class="note">'+(it.nota||'—')+'</td></tr>';
+    }
+    h+='</tbody></table></div>';
+  }
+  $('costBody').innerHTML=h;
+  $('costBody').querySelectorAll('.ctcard').forEach(c=>c.onclick=()=>{ costScenario=c.dataset.sc; renderCost(); });
+  $('costCard').classList.toggle('sc-eco', costScenario==='eco');
+  $('costCard').classList.toggle('sc-max', costScenario==='max');
+}
+$('bCost').onclick=async()=>{ try{ await loadCost(); renderCost(); }catch(e){ $('costBody').innerHTML='<p style="color:var(--muted);padding:20px">No se pudo cargar el presupuesto ('+e+'). Revisa <code>docs/costos.json</code>.</p>'; } $('costModal').style.display='flex'; };
+$('costClose').onclick=()=>$('costModal').style.display='none';
+$('costModal').addEventListener('click',e=>{ if(e.target.id==='costModal') e.target.style.display='none'; });
+if(location.hash.toLowerCase().includes('cost')){ (async()=>{ try{ await loadCost(); renderCost(); }catch(e){} $('costModal').style.display='flex'; })(); }
 
 // ---------- Ventana de código OpenSCAD (editable + recompilable con openscad-wasm) ----------
 async function loadScad(){ const f=$('scadPick').value; $('scadStatus').textContent='cargando '+f+'…';

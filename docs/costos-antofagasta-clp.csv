@@ -1,46 +1,46 @@
-﻿OpenOmni - Costo maximo estimado (Antofagasta, CLP)
-Subsistema;Componente;Cant.;Precio unit. (CLP);Subtotal (CLP);Notas / donde
+﻿OpenOmni - Costos Antofagasta (CLP)
+Subsistema;Componente;Cant.;Precio max;Subtotal max;Precio ECO;Subtotal ECO;Como bajar de precio
 Cuenco y estructura (madera)
-;Terciado estructural 18mm (1.22x2.44m);3;38000;114000;Sodimac / Construmart
-;"Pino 2x4"" (3.2m) - vigas radiales";8;4500;36000;estructura tipo rayos
-;"Pino 2x12"" - bloque central octagono";1;14000;14000;
-;Tornillos estructurales 8x80mm (caja);1;16000;16000;juntas radial-centro
-;Tornillos madera 4x40mm (caja 200);1;9000;9000;deck a radiales
-;Adhesivo maderas D3 (250ml);1;8000;8000;
-;Lamina HDPE / melamina lisa (superficie);1;42000;42000;cara deslizante
-;Lubricante silicona spray;1;8000;8000;baja friccion
-;;;Subtotal;247000;
-Giro (anillo turntable) + fierros
-;Rodamiento plato giratorio / lazy-susan grande;1;30000;30000;el collar giratorio
-;Ruedas / rodillos industriales (respaldo);4;6000;24000;
-;Tubo cuadrado acero 40x40x3mm (6m);1;26000;26000;eslabon inferior brazo
-;Tubo cuadrado acero 50x50x3mm (2m);1;13000;13000;poste
-;Rodamientos 6008 (juntas del brazo);2;5000;10000;
-;Pernos M10/M12 grado 8.8 + tuercas;1;16000;16000;ejes / doble corte
-;Pin acero M10 (codo) + pletinas;1;8000;8000;junta del codo
-;Cierre rapido (QR) de bicicleta;1;7000;7000;bloqueo del brazo
-;;;Subtotal;134000;
+;Terciado estructural 18mm (1.22x2.44m);3;38000;114000;15000;45000;OSB / pallet reciclado
+;"Pino 2x4"" radiales";8;4500;36000;1500;12000;pallet / rescatado
+;"Pino 2x12"" bloque central";1;14000;14000;6000;6000;madera rescatada
+;Tornillos estructurales 8x80mm;1;16000;16000;10000;10000;menos cantidad
+;Tornillos madera 4x40mm;1;9000;9000;5000;5000;
+;Adhesivo maderas D3;1;8000;8000;6000;6000;
+;Superficie deslizante;1;42000;42000;12000;12000;alfombra + deslizadores (DIY) en vez de HDPE
+;Lubricante silicona spray;1;8000;8000;6000;6000;
+;;;Subtotal;247000;;102000;
+Giro (anillo/collar) + fierros
+;Rodamiento giratorio del collar;1;30000;30000;12000;12000;lazy-susan barato / rueda auto rescatada
+;Ruedas / rodillos;4;6000;24000;2000;8000;rescatadas
+;Tubo cuadrado 40x40x3mm (6m);1;26000;26000;12000;12000;fierro usado
+;Tubo cuadrado 50x50x3mm (2m);1;13000;13000;7000;7000;fierro usado
+;Rodamientos 6008 (juntas);2;5000;10000;2000;4000;de bicicleta rescatados
+;Pernos M10/M12 8.8 + tuercas;1;16000;16000;10000;10000;
+;Pin acero M10 (codo) + pletinas;1;8000;8000;5000;5000;
+;Cierre rapido (QR) bici;1;7000;7000;3000;3000;rescatado
+;;;Subtotal;134000;;61000;
 Hidraulica (resorte de gas)
-;Resorte a gas 300-400N, carrera >=120mm;1;16000;16000;o cilindro silla oficina
-;Terminales rotula / clevis M8;2;4500;9000;montaje del strut
-;;;Subtotal;25000;
+;Resorte a gas 300-400N;1;16000;16000;5000;5000;cilindro de silla de oficina rescatado
+;Terminales rotula / clevis M8;2;4500;9000;2500;5000;
+;;;Subtotal;25000;;10000;
 Arnes y calzado
-;Cinturon lumbar / arnes acolchado;1;25000;25000;interfaz cuerpo-brazo
-;Deslizadores PTFE/UHMW (muebles);4;3000;12000;almohadillas del calzado
-;Correas velcro + hebillas;1;6000;6000;
-;Filamento PETG 1kg (piezas impresas);1;20000;20000;
-;;;Subtotal;63000;
+;Cinturon lumbar / arnes;1;25000;25000;10000;10000;arnes que ya tengas
+;Deslizadores PTFE/UHMW;4;3000;12000;1500;6000;deslizadores de muebles basicos
+;Correas velcro + hebillas;1;6000;6000;3000;3000;
+;Filamento PETG 1kg;1;20000;20000;12000;12000;PLA / menos filamento
+;;;Subtotal;63000;;31000;
 Electronica (sensores + hub)
-;ESP32-C3 (tracker de pie);2;6000;12000;AliExpress / local
-;IMU MPU-9250 / ICM-20948;2;7000;14000;
-;FSR sensor de fuerza (talon);2;6000;12000;
-;LiPo 500-1000mAh + cargador TP4056;2;7000;14000;
-;ESP32-S3 (hub = mando USB);1;10000;10000;
-;Cables, JST, headers, resistencias;1;8000;8000;
-;;;Subtotal;70000;
+;ESP32-C3 (tracker);2;6000;12000;4000;8000;ESP32 generico
+;IMU MPU-9250;2;7000;14000;3000;6000;MPU6050 (6 ejes)
+;FSR sensor de fuerza;2;6000;12000;0;0;omitir: deteccion solo por IMU
+;LiPo + TP4056;2;7000;14000;5000;10000;
+;ESP32-S3 (hub);1;10000;10000;8000;8000;
+;Cables, JST, headers;1;8000;8000;5000;5000;
+;;;Subtotal;70000;;37000;
 Varios / consumibles
-;Poliuretano/sellador + lija;1;13000;13000;acabado del cuenco
-;Grasa para rodamientos;1;5000;5000;
-;Imprevistos / envios (~10%);1;55000;55000;colchon
-;;;Subtotal;73000;
-;;;TOTAL MAXIMO;612000;
+;Poliuretano/sellador + lija;1;13000;13000;8000;8000;
+;Grasa rodamientos;1;5000;5000;3000;3000;
+;Imprevistos / envios (~10%);1;55000;55000;30000;30000;menos colchon
+;;;Subtotal;73000;;41000;
+;;;TOTAL;612000;;282000;
