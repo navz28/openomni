@@ -605,6 +605,18 @@ const strutBallA=new THREE.Mesh(new THREE.SphereGeometry(0.016,14,12),MAT.rod.cl
 const strutBallB=new THREE.Mesh(new THREE.SphereGeometry(0.016,14,12),MAT.rod.clone());
 strutBallA.userData.cat='steel'; strutBallB.userData.cat='steel';
 armYaw.add(strutBallA,strutBallB);
+// brackets (clevis) que unen cada extremo del strut a su tubo: separan la rótula
+// del eje del tubo (offset en Z) para que el strut trabaje a un costado del brazo.
+function strutBracket(){
+  const g=new THREE.Group();
+  const tab=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.028,0.075),MAT.printed.clone());  // pletina impresa/atornillada al tubo
+  tab.userData.cat='printed'; g.add(tab);
+  const stud=new THREE.Mesh(new THREE.CylinderGeometry(0.006,0.006,0.03,10).rotateX(Math.PI/2),MAT.steel.clone());
+  stud.position.z=0.045; stud.userData.cat='steel'; g.add(stud);   // perno/rótula stud al que engancha el strut
+  return g;
+}
+const strutBktA=strutBracket(), strutBktB=strutBracket();
+armYaw.add(strutBktA,strutBktB);
 const strutLabel=label('gas strut','#18b6a6'); strutLabel.visible=false; scene.add(strutLabel);
 const hubLabel=label('junta plástica + eje de acero','#ff6a3d'); hubLabel.visible=false; scene.add(hubLabel);
 // registra el carro completo (brazo+poste+bearing) como pieza explotable, sin sobreescribir categorías
@@ -649,6 +661,7 @@ function solveArm(target){
   strutRod.position.set(Ax+ux*rodC, Ay+uy*rodC, cz); strutRod.rotation.set(0,0,sang);
   strutRod.scale.x=rodLen/STRUT_RODGEO;                    // estira/encoge el vástago
   strutBallA.position.set(Ax,Ay,cz); strutBallB.position.set(Bx,By,cz);         // rótulas del strut
+  strutBktA.position.set(Ax,Ay,cz*0.55); strutBktB.position.set(Bx,By,cz*0.55); // brackets tubo→rótula
   strutLen=sd;
   elbowAngleDeg=(Math.PI-a2)*180/Math.PI;
   // etiquetas
