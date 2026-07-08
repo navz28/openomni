@@ -738,7 +738,12 @@ else _loader.load('./assets/character.glb', onModel, undefined, ()=>_loader.load
 const G=9.80665;
 const arrows={};
 function mkArrow(color){const a=new THREE.ArrowHelper(new THREE.Vector3(0,1,0),
-  new THREE.Vector3(),0.3,color,0.09,0.05);scene.add(a);return a;}
+  new THREE.Vector3(),0.3,color,0.09,0.05);
+  // dibujar SIEMPRE por encima de los cuerpos (Xbot/plataforma): sin test de profundidad
+  a.renderOrder=999;
+  for(const part of [a.line,a.cone]){ part.renderOrder=999;
+    part.material.depthTest=false; part.material.depthWrite=false; part.material.transparent=true; }
+  scene.add(a);return a;}
 arrows.W=mkArrow(0xff4d4d); arrows.N=mkArrow(0x37d67a); arrows.R=mkArrow(0x33c9ff);
 arrows.H=mkArrow(0xffa63d); arrows.S=mkArrow(0xb980ff);
 const FS=0.00055; // escala visual m/N
