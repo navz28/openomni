@@ -246,21 +246,40 @@ herramienta de dise\~no y de comunicaci\'on del sistema.
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig_bearing.png}
-\caption{Plataforma elevada sobre patas: el mecanismo de giro (rodamiento central + brazo
-radial + poste) queda visible en el hueco inferior.}
+\caption{Torre de giro central: placa base + rodamiento de giro (pistas y bolas) + carro
+giratorio con brazo radial y poste; el pedestal central fijo sube por el eje del rodamiento y
+sostiene la plataforma (cuenco) arriba.}
 \label{fig:bearing}
 \end{figure}
 
-\section{Observaci\'on abierta (por revisar)}
+\section{Torre de giro: rodamiento central y caminos de carga}
+La observaci\'on inicial era que, en el Omni One, el anillo giratorio del brazo y la plataforma
+parec\'ian compartir el \emph{mismo rodamiento central} sobre una base estructural. El dise\~no
+de OpenOmni lo resuelve con un \textbf{rodamiento de giro} (\emph{slewing ring}: pista externa
+fija, pista interna giratoria y bolas intermedias) y, sobre todo, \textbf{separando dos caminos
+de carga} para que ninguna funci\'on comprometa a la otra:
+\begin{itemize}\itemsep2pt
+\item \textbf{Peso del usuario} ($W$): cuenco $\rightarrow$ \emph{pedestal central fijo} (que sube
+por el \emph{bore} del rodamiento) $\rightarrow$ placa base $\rightarrow$ piso. El rodamiento
+\emph{no} soporta el peso axial del usuario.
+\item \textbf{Giro del brazo}: carro giratorio $\rightarrow$ pista interna $\rightarrow$ bolas
+$\rightarrow$ pista externa fija $\rightarrow$ placa base $\rightarrow$ piso. El rodamiento
+toma \emph{s\'olo} el giro y el momento de vuelco del brazo,
+$M \approx P_h\,h \lesssim \SI{600}{\newton}\cdot\SI{1.0}{\meter}$ (Secci\'on~6).
+\end{itemize}
+El apilado, de abajo hacia arriba, es: \textbf{placa base con patas} (anti-vuelco) $\cdot$
+\textbf{rodamiento} (pistas + bolas) $\cdot$ \textbf{brazo/carro} $\cdot$ \textbf{pedestal} $\cdot$
+\textbf{plataforma (cuenco) arriba}. Un \'unico \emph{slewing ring} tambi\'en podr\'ia cargar
+ambas funciones ---est\'an dise\~nados para carga combinada axial+radial+momento---, pero
+separar los caminos abarata la pieza (basta un rodamiento de menor capacidad axial) y desacopla
+el desgaste del giro de la seguridad estructural bajo el usuario.
+\vspace{2pt}
+
 \noindent\fbox{\begin{minipage}{0.95\linewidth}\small
-\textbf{Reparto del rodamiento plataforma/brazo.} En el Omni One, el anillo giratorio del brazo
-y la plataforma parecen compartir el \emph{mismo rodamiento central}, con una base estructural que
-sostiene la plataforma. Queda por confirmar: (i) si es un \'unico rodamiento de gran di\'ametro o
-dos conc\'entricos; (ii) c\'omo se reparte ese rodamiento entre el \emph{giro} del brazo y el
-\emph{soporte del peso} de la plataforma; (iii) c\'omo la base transmite el peso del usuario m\'as
-el momento del brazo ($\sim$630~N\,m, Secci\'on~6) al piso. El modelo actual (collar giratorio +
-base fija) es una aproximaci\'on \textbf{a validar}: impacta directamente el dise\~no del giro y el
-an\'alisis de cargas.
+\textbf{Pendiente de validar en prototipo:} rigidez del voladizo del cuenco sobre el pedestal
+(el borde a $r=R$ genera momento sobre el eje central), holgura/pre\-carga del rodamiento
+para un giro suave sin juego, y verificaci\'on experimental del reparto real del rodamiento
+del Omni One frente a esta arquitectura de caminos separados.
 \end{minipage}}
 \vspace{4pt}
 
